@@ -1,0 +1,88 @@
+syntax="proto3";
+
+package pbs;
+
+option go_package = "../tinnraftpb";
+
+message RequestVoteArgs {
+	int64 Term = 1;   
+	int64 CandidateId  = 2;
+	int64 LastLogIndex = 3;
+	int64 LastLogTerm  = 4;
+}
+
+message RequestVoteReply{
+	int64 Term = 1;
+	bool VoteGranted = 2;
+}
+
+/*
+1. EntryData -> put,get
+2. EntryConfUpdate ->cluster config update
+*/
+
+enum EntryType{
+	EntryData = 0;
+	EntryConfUpdate = 1;
+}
+
+message Entry {
+	EntryType Type = 1;
+	uint64 	  Term = 2;
+	int64 	  Index = 3;
+}
+
+message AppendEntriesArgs {
+	int64             Term = 1;         
+	int64         LeaderId = 2;    
+	int64     PrevLogIndex = 3;
+	int64      PrevLogTerm = 4;
+	repeated Entry Entries = 5;      
+	int64     LeaderCommit = 6;
+}
+
+message AppendEntriesReply {
+	int64 Term =1;
+	bool Success = 2;
+	bool Conflict = 3;
+	int64 XTerm = 4;
+	int64 XIndex = 5;
+	int64 XLen = 6;
+}
+
+message ApplyMsg {
+	bool CommandValid = 1; 
+	bytes Command = 2;
+	int64 CommandIndex =3;
+	int64 CommandTerm = 4;
+
+	bool SnapshotValid = 5;
+	bytes Snapshot = 6;      
+	int64 SnapshotTerm = 7;
+	int64 SnapshotIndex = 8;
+}
+
+message InstallSnapshotArgs{
+	int64 Term = 1;
+	int64 LeaderId = 2;
+	int64 LastIncludedIndex = 3;
+	int64 LastIncludeTerm = 4;
+	bytes Data = 5;
+}
+
+message InstallSnapshotReply{
+	int64 Term = 1;
+}
+
+service RaftService{
+    rpc RequestVote (RequestVoteArgs) returns (RequestVoteReply){}
+	rpc AppendEntries(AppendEntriesArgs) returns (AppendEntriesReply){}
+	rpc Snapshot(InstallSnapshotArgs)returns(InstallSnapshotReply){}
+}
+
+
+
+
+
+
+
