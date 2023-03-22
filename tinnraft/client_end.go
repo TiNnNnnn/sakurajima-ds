@@ -46,3 +46,9 @@ func (ce *ClientEnd) GetRaftServiceCli() *tinnraftpb.RaftServiceClient {
 	return ce.raftServiceCli
 }
 
+// 关闭所有连接
+func (ce *ClientEnd) CloseConns() {
+	for _, conn := range ce.conns {
+		conn.Close()
+	}
+}
