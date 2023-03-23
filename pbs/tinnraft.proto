@@ -27,9 +27,10 @@ enum EntryType{
 }
 
 message Entry {
-	EntryType Type = 1;
-	uint64 	  Term = 2;
+	EntryType Type  = 1;
+	uint64 	  Term  = 2;
 	int64 	  Index = 3;
+	bytes     Data  = 4;
 }
 
 message AppendEntriesArgs {

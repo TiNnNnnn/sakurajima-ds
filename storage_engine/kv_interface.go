@@ -3,10 +3,14 @@ package storage_engine
 /*
 存储引擎，接口类
 */
-
 type KvStorage interface {
+	//put
 	Put(string, string) error
+	PutBytesKv(k []byte, v []byte) error
+	//get
 	Get(string) (string, error)
+	GetBytesValue(k []byte) ([]byte, error)
+	//delete
 	Delete(string) error
 }
 
@@ -19,4 +23,5 @@ func EngineFactory(name string, dbPath string) KvStorage {
 		}
 		return levelDb
 	}
+	return nil
 }

@@ -1,11 +1,11 @@
 package storage_engine
 
 import (
-	"errors"
+	_ "errors"
 
 	"github.com/syndtr/goleveldb/leveldb"
 	"github.com/syndtr/goleveldb/leveldb/opt"
-	"github.com/syndtr/goleveldb/leveldb/util"
+	_ "github.com/syndtr/goleveldb/leveldb/util"
 )
 
 type LevelDBKvStorage struct {
