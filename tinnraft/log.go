@@ -21,14 +21,18 @@ type Log struct {
 持久化日志 接口
 */
 type LogOperation interface {
-	GetFirst() *tinnraftpb.Entry
-	LogLen() int
-	TruncateLog() []*tinnraftpb.Entry
-	SliceLog() []*tinnraftpb.Entry
-	GetInterLog(lIdx int, rIdx int) []*tinnraftpb.Entry
-	Append(entry *tinnraftpb.Entry)
-	GetEntryByidx(idx int64) *tinnraftpb.Entry
-	GetLastEntry() *tinnraftpb.Entry
+	GetPersistFirstEntry() *tinnraftpb.Entry
+	GetPersistLastEntry() *tinnraftpb.Entry
+
+	LogPersistLen() int
+
+	TruncatePersistLog(idx int64) []*tinnraftpb.Entry
+	SlicePersistLog(idx int64, withDel bool) []*tinnraftpb.Entry
+
+	PersistAppend(entry *tinnraftpb.Entry)
+
+	GetPersistInterLog(lIdx int64, rIdx int64) []*tinnraftpb.Entry
+	GetPersistEntryByidx(idx int64) *tinnraftpb.Entry
 }
 
 /*

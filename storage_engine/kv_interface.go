@@ -12,6 +12,13 @@ type KvStorage interface {
 	GetBytesValue(k []byte) ([]byte, error)
 	//delete
 	Delete(string) error
+	DeleteBytesKey(k []byte) error
+
+	GetAllPrefixKey(pre string) (map[string]string, error)
+	GetPrefixLast(pre []byte) ([]byte, []byte, error)
+	GetPerixFirst(pre string) ([]byte, []byte, error)
+	GetPrefixKeyIdMax(pre []byte) (uint64, error)
+	DeltePrefixKeys(pre string) error
 }
 
 func EngineFactory(name string, dbPath string) KvStorage {
@@ -22,6 +29,7 @@ func EngineFactory(name string, dbPath string) KvStorage {
 			panic(err)
 		}
 		return levelDb
+	default:
+		panic("No such type of engine support")
 	}
-	return nil
 }
