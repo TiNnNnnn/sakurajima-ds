@@ -9,17 +9,23 @@ import (
 )
 
 type Log struct {
-	mu        sync.RWMutex
-	entries   []tinnraftpb.Entry //日志条目列表
-	indexHead int
-	indexLast int
-	engine    storage_engine.KvStorage //存储引擎
+	mu         sync.RWMutex
+	entries    []*tinnraftpb.Entry //日志条目列表
+	indexHead  int64
+	indexLast  int64
+	appliedIdx int64
+	engine     storage_engine.KvStorage //存储引擎
 }
 
 /*
 持久化日志 接口
 */
 type LogOperation interface {
+	GetFirst() *tinnraftpb.Entry
+	LogLen() int
+	TruncateLog() []*tinnraftpb.Entry
+	SliceLog() []*tinnraftpb.Entry
+	GetInterLog(lIdx int, rIdx int) []*tinnraftpb.Entry
 	Append(entry *tinnraftpb.Entry)
 	GetEntryByidx(idx int64) *tinnraftpb.Entry
 	GetLastEntry() *tinnraftpb.Entry
@@ -29,67 +35,76 @@ type LogOperation interface {
 内存存储日志
 */
 
-// 初始化日志
-func makeEmptyLog() Log {
-	log := Log{
-		entries:   make([]tinnraftpb.Entry, 0),
+// 初始化一份日志,并添加一条空日志
+func makeEmptyLog() *Log {
+	empEnt := &tinnraftpb.Entry{}
+	newEntries := []*tinnraftpb.Entry{}
+	newEntries = append(newEntries, empEnt)
+	return &Log{
+		entries:   newEntries,
 		indexHead: 0,
-		indexLast: 0,
+		indexLast: 1,
 	}
-	return log
 }
 
-// 添加日志
-// func (l *Log) append(entries ...tinnraftpb.Entry) {
-// 	l.entries = append(l.entries, entries...)
-// }
+// 添加一条新的日志
+func (log *Log) AppendLog(entry *tinnraftpb.Entry) {
+	log.entries = append(log.entries, entry)
+}
+
+// 根据条目小标查找日志
+func (l *Log) at(idx int) *tinnraftpb.Entry {
+	return l.entries[idx]
+}
+
+// 获取最后一条日志
+func (l *Log) GetlastLog() *tinnraftpb.Entry {
+	return l.at(l.LenLog() - 1)
+}
+
+// 获取第一条日志
+func (l *Log) GetfirstLog() *tinnraftpb.Entry {
+	return l.at(0)
+}
+
+// 获取特定区间日志
+func (l *Log) GetInterLog(lIdx int, rIdx int) []*tinnraftpb.Entry {
+	return l.entries[lIdx:rIdx]
+}
+
+// 清空idx之前的所有日志
+func (l *Log) TruncateLog(idx int) {
+	l.entries = l.entries[:idx]
+}
+
+// 获取从idx开始的所有日志
+func (l *Log) SliceLog(idx int) {
+	l.entries = l.entries[idx:]
+}
+
+// 获取日志长度
+func (l *Log) LenLog() int {
+	return len(l.entries)
+}
+
+//old_verion------------------------------------
 
 func (l *Log) append2(entries []*tinnraftpb.Entry) {
 
 	for i := 0; i < len(entries); i++ {
-		l.entries = append(l.entries, *entries[i])
+		l.entries = append(l.entries, entries[i])
 	}
 }
 
-// 查询日志字段
-func (l *Log) at(idx int) *tinnraftpb.Entry {
-	return &l.entries[idx]
-}
-
-// 清空日志
-func (l *Log) truncate(idx int) {
-	l.entries = l.entries[:idx]
-}
-
 // 获取日志切片
-// func (l *Log) slice(idx int) []tinnraftpb.Entry {
-// 	return l.entries[idx:]
-// }
-
 func (l *Log) slice2(idx int) []*tinnraftpb.Entry {
 	entries := l.entries[idx:]
 	ents := []*tinnraftpb.Entry{}
 	for i := 0; i < len(entries); i++ {
-		ents = append(ents, &entries[i])
+		ents = append(ents, entries[i])
 	}
 	return ents
 }
-
-// 获取日志长度
-func (l *Log) len() int {
-	return len(l.entries)
-}
-
-// 获取最后一条日志
-func (l *Log) lastLog() *tinnraftpb.Entry {
-	return l.at(l.len() - 1)
-}
-
-// 获取单条日志的term
-// func ()String() string {
-// 	e := make(tinnraftpb.Entry,0)
-// 	return fmt.Sprint(e.Term)
-// }
 
 // 返回所有term
 func (l *Log) String() string {

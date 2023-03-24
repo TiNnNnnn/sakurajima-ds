@@ -29,9 +29,9 @@ type Raft struct {
 	electionTime time.Time     //选举超时时间
 
 	//通用持久化状态（所有server）
-	currentTerm int //当前任期
-	votedFor    int //记录将选票投给了谁
-	log         Log //日志
+	currentTerm int  //当前任期
+	votedFor    int  //记录将选票投给了谁
+	log         *Log //日志
 
 	//通用易失性状态 (所有server)
 	commitIndex int //已提交的日志下标
@@ -62,8 +62,6 @@ func MakeRaft(peers []*ClientEnd, me int, dbEngine storage_engine.KvStorage,
 
 	//日志初始化,加入一个空日志
 	rf.log = makeEmptyLog()
-	emptyEntrys := []*tinnraftpb.Entry{}
-	rf.log.append2(emptyEntrys)
 
 	rf.commitIndex = 0
 	rf.lastApplied = 0
@@ -93,6 +91,31 @@ func (rf *Raft) Kill() {
 // 判断主机是否失活
 func (rf *Raft) IsKilled() bool {
 	return atomic.LoadInt32(&rf.dead) == 1
+}
+
+func (rf *Raft) Propose(payload []byte) (int, int, bool) {
+	rf.mu.Lock()
+	defer rf.mu.Unlock()
+
+	if rf.state != Leader {
+		return -1, -1, false
+	}
+	index := rf.log.lastLog().Index + 1
+	term := rf.currentTerm
+
+	log := tinnraftpb.Entry{
+		Index: index,
+		Term:  uint64(term),
+		Data:  payload,
+	}
+
+	rf.log.append2(log)
+	rf.persist()
+	//fmt.Printf("[%v]: term %v Start %v", rf.me, term, log)
+	//DPrintf("[%v]: term %v Start %v", rf.me, term, log)
+	rf.appendEntries(false)
+
+	return int(index), term, true
 }
 
 func (rf *Raft) GetState() (int, bool) {
