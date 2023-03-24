@@ -61,9 +61,8 @@ func (rf *Raft) appendEntries(isHeartbeat bool) {
 }
 
 func (rf *Raft) leaderSendEntries(serverId int, args *tinnraftpb.AppendEntriesArgs) {
-	var reply tinnraftpb.AppendEntriesReply
-	ok := rf.sendAppendEntries(serverId, args, &reply)
-	if !ok {
+	reply, err := rf.sendAppendEntries(serverId, args)
+	if err != nil {
 		return
 	}
 
@@ -217,11 +216,7 @@ func (rf *Raft) AppendEntries(args *tinnraftpb.AppendEntriesArgs, reply *tinnraf
 }
 
 // rpc 调用对端的AppendEntries方法
-func (rf *Raft) sendAppendEntries(server int, args *tinnraftpb.AppendEntriesArgs, reply *tinnraftpb.AppendEntriesReply) bool {
+func (rf *Raft) sendAppendEntries(server int, args *tinnraftpb.AppendEntriesArgs) (*tinnraftpb.AppendEntriesReply, error) {
 	//ok := rf.peers[server].Call("Raft.AppendEntries", args, reply)
-	reply, err := (*rf.peers[server].raftServiceCli).AppendEntries(context.Background(), args)
-	if err != nil {
-		return false
-	}
-	return true
+	return (*rf.peers[server].raftServiceCli).AppendEntries(context.Background(), args)
 }

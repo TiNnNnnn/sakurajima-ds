@@ -40,16 +40,15 @@ func makeEmptyLog() Log {
 }
 
 // 添加日志
-func (l *Log) append(entries ...tinnraftpb.Entry) {
-	l.entries = append(l.entries, entries...)
-}
+// func (l *Log) append(entries ...tinnraftpb.Entry) {
+// 	l.entries = append(l.entries, entries...)
+// }
 
 func (l *Log) append2(entries []*tinnraftpb.Entry) {
 
 	for i := 0; i < len(entries); i++ {
 		l.entries = append(l.entries, *entries[i])
 	}
-
 }
 
 // 查询日志字段
@@ -63,9 +62,9 @@ func (l *Log) truncate(idx int) {
 }
 
 // 获取日志切片
-func (l *Log) slice(idx int) []tinnraftpb.Entry {
-	return l.entries[idx:]
-}
+// func (l *Log) slice(idx int) []tinnraftpb.Entry {
+// 	return l.entries[idx:]
+// }
 
 func (l *Log) slice2(idx int) []*tinnraftpb.Entry {
 	entries := l.entries[idx:]

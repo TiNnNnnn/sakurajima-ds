@@ -2,8 +2,9 @@ package tinnraft
 
 import (
 	"fmt"
-	"google.golang.org/grpc"
 	"sakurajima-ds/tinnraftpb"
+
+	"google.golang.org/grpc"
 )
 
 // raft节点客户端，抽象化为ClientEnd结构

@@ -24,10 +24,9 @@ import (
 
 // 候选人发起投票请求
 func (rf *Raft) candidateRequestVote(serverId int, args *tinnraftpb.RequestVoteArgs, voteCounter *int, becomeLeader *sync.Once) {
-	reply := tinnraftpb.RequestVoteReply{}
 	//发起rpc投票并接受结果
-	ok := rf.sendRequestVote(serverId, args, &reply)
-	if !ok {
+	reply, err := rf.sendRequestVote(serverId, args)
+	if err != nil {
 		return
 	}
 	rf.mu.Lock()
@@ -99,11 +98,8 @@ func (rf *Raft) RequestVote(args *tinnraftpb.RequestVoteArgs, reply *tinnraftpb.
 	reply.Term = int64(rf.currentTerm)
 }
 
-func (rf *Raft) sendRequestVote(server int, args *tinnraftpb.RequestVoteArgs, reply *tinnraftpb.RequestVoteReply) bool {
+func (rf *Raft) sendRequestVote(server int, args *tinnraftpb.RequestVoteArgs) (*tinnraftpb.RequestVoteReply, error) {
 	//ok := rf.peers[server].Call("Raft.RequestVote", args, reply)
-	reply, err := (*rf.peers[server].raftServiceCli).RequestVote(context.Background(), args)
-	if err != nil {
-		return false
-	}
-	return true
+	return (*rf.peers[server].raftServiceCli).RequestVote(context.Background(), args)
+
 }
