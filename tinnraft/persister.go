@@ -51,7 +51,7 @@ func (log *Log) GetPersistFirstEntry() *tinnraftpb.Entry {
 	if err != nil {
 		panic(err)
 	}
-	DLog("get the first log with id: ", DecodeLogKey(k))
+	DLog("get the first log with id: %d", DecodeLogKey(k))
 	return DecodeEntry(v)
 
 }

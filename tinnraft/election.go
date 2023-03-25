@@ -1,7 +1,6 @@
 package tinnraft
 
 import (
-	"fmt"
 	"math/rand"
 	"sakurajima-ds/tinnraftpb"
 	"sync"
@@ -20,9 +19,9 @@ func (rf *Raft) leaderElection() {
 	term := rf.currentTerm
 	voteCounter := 1
 
-	candiate_lastLog := rf.log.lastLog()
+	candiate_lastLog := rf.log.GetPersistLastEntry()
 
-	fmt.Printf("[%v]: start leader election, term %d\n", rf.me, rf.currentTerm)
+	DLog("[%v]: start leader election, term %d\n", rf.me, rf.currentTerm)
 
 	args := tinnraftpb.RequestVoteArgs{
 		Term:         int64(term),
@@ -30,6 +29,7 @@ func (rf *Raft) leaderElection() {
 		LastLogIndex: int64(candiate_lastLog.Index),
 		LastLogTerm:  int64(candiate_lastLog.Term),
 	}
+
 	//sync原语，表示becomeLeader对象只执行一次(类似单例)
 	var becomeLeader sync.Once
 	//向集群内其他server发送投票请求

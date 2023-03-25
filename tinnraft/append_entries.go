@@ -29,7 +29,7 @@ import (
 // }
 
 func (rf *Raft) appendEntries(isHeartbeat bool) {
-	lastLog := rf.log.lastLog()
+	lastLog := rf.log.GetPersistLastEntry()
 	for peer := range rf.peers {
 		if peer == rf.me {
 			rf.resetElectionTimer()
@@ -110,7 +110,7 @@ func (rf *Raft) leaderCommitRule() {
 		return
 	}
 
-	for k := rf.commitIndex + 1; k <= int(rf.log.lastLog().Index); k++ {
+	for k := rf.commitIndex + 1; k <= int(rf.log.GetPersistLastEntry().Index); k++ {
 		if int(rf.log.at(k).Term) != rf.currentTerm {
 			continue
 		}
@@ -130,7 +130,7 @@ func (rf *Raft) leaderCommitRule() {
 
 // 从后往前查找任期为x的日志条目的索引
 func (rf *Raft) findLastLogInTerm(x int) int {
-	for i := int(rf.log.lastLog().Index); i > 0; i-- {
+	for i := int(rf.log.GetPersistLastEntry().Index); i > 0; i-- {
 		term := int(rf.log.at(i).Term)
 		if term == x {
 			return i
@@ -164,11 +164,11 @@ func (rf *Raft) AppendEntries(args *tinnraftpb.AppendEntriesArgs, reply *tinnraf
 	}
 
 	//PrevLogIndex发生冲突
-	if rf.log.lastLog().Index < args.PrevLogIndex {
+	if rf.log.GetPersistLastEntry().Index < args.PrevLogIndex {
 		reply.Conflict = true
 		reply.XTerm = -1
 		reply.XIndex = -1
-		reply.XLen = int64(rf.log.len())
+		reply.XLen = int64(rf.log.LenLog())
 		return
 	}
 	//PrevLogTerm发生冲突
@@ -183,7 +183,7 @@ func (rf *Raft) AppendEntries(args *tinnraftpb.AppendEntriesArgs, reply *tinnraf
 			}
 		}
 		reply.XTerm = int64(xTerm)
-		reply.XLen = int64(rf.log.len())
+		reply.XLen = int64(rf.log.LenLog())
 		return
 	}
 
@@ -191,13 +191,13 @@ func (rf *Raft) AppendEntries(args *tinnraftpb.AppendEntriesArgs, reply *tinnraf
 		//如果follower中已经存在的日志条目和追加日志条目发生
 		//冲突(索引相同,但是任期不同),那么就删除这个已经存在
 		//的条目以及之后的所有条目
-		if entry.Index <= rf.log.lastLog().Index &&
+		if entry.Index <= rf.log.GetPersistLastEntry().Index &&
 			rf.log.at(int(entry.Index)).Term != entry.Term {
-			rf.log.truncate(int(entry.Index))
+			rf.log.TruncatePersistLog(int64(entry.Index))
 			rf.persist()
 		}
 		//追加日志中尚未保存的任何新日志条目
-		if entry.Index > rf.log.lastLog().Index {
+		if entry.Index > rf.log.GetPersistLastEntry().Index {
 
 			rf.log.append2(args.Entries[idx:])
 			rf.persist()
@@ -208,7 +208,7 @@ func (rf *Raft) AppendEntries(args *tinnraftpb.AppendEntriesArgs, reply *tinnraf
 	//已经提交的最高的日志条目的索引,commitIndex重置为
 	//min(LeaderCommit,最新追加日志的最高索引)
 	if args.LeaderCommit > int64(rf.commitIndex) {
-		rf.commitIndex = min(int(args.LeaderCommit), int(rf.log.lastLog().Index))
+		rf.commitIndex = min(int(args.LeaderCommit), int(rf.log.GetPersistLastEntry().Index))
 		rf.apply()
 	}
 	reply.Success = true

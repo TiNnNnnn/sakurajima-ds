@@ -27,7 +27,7 @@ func (rf *Raft) candidateRequestVote(serverId int, args *tinnraftpb.RequestVoteA
 	//发起rpc投票并接受结果
 	reply, err := rf.sendRequestVote(serverId, args)
 	if err != nil {
-		return
+		DLog("[%v]: send request vote to %d failed %v", rf.me, serverId, err.Error())
 	}
 	rf.mu.Lock()
 	defer rf.mu.Unlock()
@@ -35,14 +35,18 @@ func (rf *Raft) candidateRequestVote(serverId int, args *tinnraftpb.RequestVoteA
 	//发现fllower的term比自己大
 	if reply.Term > args.Term {
 		rf.setNewTerm(int(reply.Term))
+		rf.votedFor = -1
+		rf.state = Follower
+		rf.persist()
 		return
 	}
 
-	//如果fllower的term比自己小，投票作废
+	//发现foller的term比自己小，说明foller任期失效
 	if reply.Term < args.Term {
 		return
 	}
-	//follwer未投票,直接返回
+
+	//follwer未投票给自己,直接返回
 	if !reply.VoteGranted {
 		return
 	}
@@ -52,9 +56,10 @@ func (rf *Raft) candidateRequestVote(serverId int, args *tinnraftpb.RequestVoteA
 
 	//已经获得超过半数的选票
 	if *voteCounter > len(rf.peers)/2 && rf.currentTerm == int(args.Term) && rf.state == Candidate {
+		DLog("[%d]: recieve the most vote in term %d, election over\n", rf.me, rf.currentTerm)
 		becomeLeader.Do(func() {
 			rf.state = Leader
-			LastLogIndex := rf.log.lastLog().Index
+			LastLogIndex := rf.log.GetPersistLastEntry().Index
 			for i := range rf.peers {
 				rf.nextIndex[i] = int(LastLogIndex) + 1
 				rf.matchIndex[i] = 0
@@ -65,8 +70,8 @@ func (rf *Raft) candidateRequestVote(serverId int, args *tinnraftpb.RequestVoteA
 	}
 }
 
-func (rf *Raft) RequestVote(args *tinnraftpb.RequestVoteArgs, reply *tinnraftpb.RequestVoteReply) {
-	// Your code here (2A, 2B).
+// 处理其他server发来的requestvote请求,并回应投票结果
+func (rf *Raft) HandleRequestVote(args *tinnraftpb.RequestVoteArgs, reply *tinnraftpb.RequestVoteReply) {
 	rf.mu.Lock()
 	defer rf.mu.Unlock()
 
@@ -74,6 +79,7 @@ func (rf *Raft) RequestVote(args *tinnraftpb.RequestVoteArgs, reply *tinnraftpb.
 	if int(args.Term) > rf.currentTerm {
 		rf.setNewTerm(int(args.Term))
 	}
+
 	//发现候选人的term比自己小
 	if int(args.Term) < rf.currentTerm {
 		reply.Term = int64(rf.currentTerm)
@@ -81,7 +87,7 @@ func (rf *Raft) RequestVote(args *tinnraftpb.RequestVoteArgs, reply *tinnraftpb.
 		return
 	}
 
-	follow_lastLog := rf.log.lastLog()
+	follow_lastLog := rf.log.GetPersistLastEntry()
 	upToDate := uint64(args.LastLogTerm) > follow_lastLog.Term ||
 		(uint64(args.LastLogTerm) == follow_lastLog.Term &&
 			args.LastLogIndex >= follow_lastLog.Index)
@@ -101,5 +107,4 @@ func (rf *Raft) RequestVote(args *tinnraftpb.RequestVoteArgs, reply *tinnraftpb.
 func (rf *Raft) sendRequestVote(server int, args *tinnraftpb.RequestVoteArgs) (*tinnraftpb.RequestVoteReply, error) {
 	//ok := rf.peers[server].Call("Raft.RequestVote", args, reply)
 	return (*rf.peers[server].raftServiceCli).RequestVote(context.Background(), args)
-
 }

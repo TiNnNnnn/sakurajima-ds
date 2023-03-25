@@ -41,6 +41,8 @@ type Raft struct {
 	nextIndex  []int //记录 发送到follwer服务器的下一条日志条目的索引
 	matchIndex []int //记录 发送到floower服务器的已知的已经复制到该服务器的最高日志的索引
 
+	isSnapshoting bool
+
 	applyCh   chan tinnraftpb.ApplyMsg
 	applyCond *sync.Cond
 }
@@ -68,6 +70,8 @@ func MakeRaft(peers []*ClientEnd, me int, dbEngine storage_engine.KvStorage,
 	rf.nextIndex = make([]int, len(rf.peers))
 	rf.matchIndex = make([]int, len(rf.peers))
 
+	rf.isSnapshoting = false 
+
 	rf.applyCh = applyCh
 	rf.applyCond = sync.NewCond(&rf.mu)
 
@@ -93,6 +97,7 @@ func (rf *Raft) IsKilled() bool {
 	return atomic.LoadInt32(&rf.dead) == 1
 }
 
+// 向Leader提交一个请求
 func (rf *Raft) Propose(payload []byte) (int, int, bool) {
 	rf.mu.Lock()
 	defer rf.mu.Unlock()
@@ -100,27 +105,28 @@ func (rf *Raft) Propose(payload []byte) (int, int, bool) {
 	if rf.state != Leader {
 		return -1, -1, false
 	}
-	index := rf.log.lastLog().Index + 1
-	term := rf.currentTerm
 
-	log := tinnraftpb.Entry{
-		Index: index,
-		Term:  uint64(term),
-		Data:  payload,
-	}
-
-	rf.log.append2(log)
-	rf.persist()
-	//fmt.Printf("[%v]: term %v Start %v", rf.me, term, log)
-	//DPrintf("[%v]: term %v Start %v", rf.me, term, log)
+	newEntry := rf.AppendNewCommand(payload)
 	rf.appendEntries(false)
 
-	return int(index), term, true
+	return int(newEntry.Index), int(newEntry.Term), true
+}
+
+// 添加一条新的日志到Leader的日志中
+func (rf *Raft) AppendNewCommand(command []byte) *tinnraftpb.Entry {
+	lastLog := rf.log.GetPersistLastEntry()
+	newEntry := &tinnraftpb.Entry{
+		Index: lastLog.Index + 1,
+		Term:  uint64(rf.currentTerm),
+		Data:  command,
+	}
+	rf.log.AppendLog(newEntry)
+	rf.persister.PersistRaftState(int64(rf.currentTerm), int64(rf.votedFor))
+	return newEntry
 }
 
 func (rf *Raft) GetState() (int, bool) {
 
-	// Your code here (2A).
 	rf.mu.Lock()
 	defer rf.mu.Unlock()
 	term := rf.currentTerm
@@ -129,14 +135,12 @@ func (rf *Raft) GetState() (int, bool) {
 	return term, isleader
 }
 
-// save Raft's persistent state to stable storage,
-// where it can later be retrieved after a crash and restart.
-// see paper's Figure 2 for a description of what should be persistent.
+// 将状态持久化
 func (rf *Raft) persist() {
 	rf.persister.PersistRaftState(int64(rf.currentTerm), int64(rf.votedFor))
 }
 
-// restore previously persisted state.
+// 恢复到之前的持久化状态
 func (rf *Raft) readPersist() {
 	curtTerm, votedFor := rf.persister.ReadRaftState()
 	rf.currentTerm = int(curtTerm)
@@ -169,7 +173,7 @@ func (rf *Raft) applier() {
 	defer rf.mu.Lock()
 
 	for !rf.IsKilled() {
-		if rf.commitIndex > rf.lastApplied && rf.log.lastLog().Index > int64(rf.lastApplied) {
+		if rf.commitIndex > rf.lastApplied && rf.log.GetPersistLastEntry().Index > int64(rf.lastApplied) {
 			rf.lastApplied++
 			applyMsg := tinnraftpb.ApplyMsg{
 				CommandValid: true,
@@ -183,5 +187,12 @@ func (rf *Raft) applier() {
 			//阻塞等待commitindex发生变化
 			rf.applyCond.Wait()
 		}
+	}
+}
+
+// 关闭所有rpc连接
+func (rf *Raft) CloseAllConn() {
+	for _, peer := range rf.peers {
+		peer.CloseConns()
 	}
 }
