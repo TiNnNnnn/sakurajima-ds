@@ -28,6 +28,9 @@ import (
 // 	XLen   int
 // }
 
+
+
+
 func (rf *Raft) appendEntries(isHeartbeat bool) {
 	lastLog := rf.log.GetPersistLastEntry()
 	for peer := range rf.peers {
@@ -141,7 +144,8 @@ func (rf *Raft) findLastLogInTerm(x int) int {
 	return -1
 }
 
-func (rf *Raft) AppendEntries(args *tinnraftpb.AppendEntriesArgs, reply *tinnraftpb.AppendEntriesReply) {
+// 处理leader发来的AppendEntries请求
+func (rf *Raft) HandleAppendEntries(args *tinnraftpb.AppendEntriesArgs, reply *tinnraftpb.AppendEntriesReply) {
 	rf.mu.Lock()
 	defer rf.mu.Unlock()
 

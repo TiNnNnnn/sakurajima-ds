@@ -56,6 +56,21 @@ func (log *Log) GetPersistFirstEntry() *tinnraftpb.Entry {
 
 }
 
+func (log *Log) SetPersistFirstData(data []byte) error {
+	log.mu.Lock()
+	defer log.mu.Lock()
+	firstIdx := log.FirstLogIdx()
+	encodeValue, err := log.engine.GetBytesValue(EncodeLogKey(firstIdx))
+	if err != nil {
+		panic(err)
+	}
+	entry := DecodeEntry(encodeValue)
+	entry.Index = int64(firstIdx)
+	entry.Data = data
+	newEntryEncode := EncodeEntry(entry)
+	return log.engine.PutBytesKv(EncodeLogKey(firstIdx), newEntryEncode)
+}
+
 // 获取最新的日志条目
 func (log *Log) GetPersistLastEntry() *tinnraftpb.Entry {
 	log.mu.Lock()
@@ -96,6 +111,20 @@ func (log *Log) TruncatePersistLog(idx int64) []*tinnraftpb.Entry {
 		entries = append(entries, log.GetEntryWithoutLock(i-int64(firstLogIdx)))
 	}
 	return entries
+}
+
+// 删除idx之前的所有日志
+func (log *Log) TruncatePersistLogWithDel(idx int64) error {
+	log.mu.Lock()
+	defer log.mu.Unlock()
+	firstLogIdx := log.FirstLogIdx()
+	for i := firstLogIdx; i < firstLogIdx+uint64(idx); i++ {
+		err := log.engine.DeleteBytesKey(EncodeLogKey(i))
+		if err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
 // 切片，获取idx以及之前的所有日志
@@ -153,6 +182,20 @@ func (log *Log) GetEntryWithoutLock(offset int64) *tinnraftpb.Entry {
 		DLog("get log entry with id %d failed", offset)
 	}
 	return DecodeEntry(encodeValue)
+}
+
+// 持久化日志快照
+func (log *Log) PersistSnapshot(snapContext []byte) {
+	log.engine.PutBytesKv(SNAPSHOT_STATE_KEY, snapContext)
+}
+
+// 读取持久化的日志快照
+func (log *Log) ReadSnapshot() ([]byte, error) {
+	bytes, err := log.engine.GetBytesValue(SNAPSHOT_STATE_KEY)
+	if err != nil {
+		return nil, err
+	}
+	return bytes, nil
 }
 
 // 获取第一条日志的idx

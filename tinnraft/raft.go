@@ -45,6 +45,8 @@ type Raft struct {
 
 	applyCh   chan tinnraftpb.ApplyMsg
 	applyCond *sync.Cond
+
+	leaderId int
 }
 
 // 初始化一个raft主机
@@ -70,7 +72,7 @@ func MakeRaft(peers []*ClientEnd, me int, dbEngine storage_engine.KvStorage,
 	rf.nextIndex = make([]int, len(rf.peers))
 	rf.matchIndex = make([]int, len(rf.peers))
 
-	rf.isSnapshoting = false 
+	rf.isSnapshoting = false
 
 	rf.applyCh = applyCh
 	rf.applyCond = sync.NewCond(&rf.mu)
