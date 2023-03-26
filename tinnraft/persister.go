@@ -56,6 +56,42 @@ func (log *Log) GetPersistFirstEntry() *tinnraftpb.Entry {
 
 }
 
+// 设置第一条日志的term和index
+func (log *Log) SetPersistFirstEntryTermAndIndex(term int64, index int64) error {
+	log.mu.Lock()
+	defer log.mu.Lock()
+	firstLogIdx := log.FirstLogIdx()
+	encodeValue, err := log.engine.GetBytesValue(EncodeLogKey(firstLogIdx))
+	if err != nil {
+		panic(err)
+	}
+	err2 := log.engine.DeleteBytesKey(EncodeLogKey(firstLogIdx))
+	if err2 != nil {
+		return err2
+	}
+	entry := DecodeEntry(encodeValue)
+	entry.Term = uint64(term)
+	entry.Index = index
+
+	newEntryEncode := EncodeEntry(entry)
+	return log.engine.PutBytesKv(EncodeLogKey(uint64(index)), newEntryEncode)
+
+}
+
+// 重置持久化日志，并添加一条新的空日志
+func (log *Log) ReInitPersistLog() error {
+	log.mu.Lock()
+	defer log.mu.Lock()
+
+	err := log.engine.DeltePrefixKeys(string(RAFTLOG_PREFIX))
+	if err != nil {
+		return err
+	}
+	entry := &tinnraftpb.Entry{}
+	entryEncode := EncodeEntry(entry)
+	return log.engine.PutBytesKv(EncodeLogKey(0), entryEncode)
+}
+
 func (log *Log) SetPersistFirstData(data []byte) error {
 	log.mu.Lock()
 	defer log.mu.Lock()

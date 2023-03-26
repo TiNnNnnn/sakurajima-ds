@@ -43,7 +43,7 @@ type Raft struct {
 
 	isSnapshoting bool
 
-	applyCh   chan tinnraftpb.ApplyMsg
+	applyCh   chan *tinnraftpb.ApplyMsg
 	applyCond *sync.Cond
 
 	leaderId int
@@ -51,7 +51,7 @@ type Raft struct {
 
 // 初始化一个raft主机
 func MakeRaft(peers []*ClientEnd, me int, dbEngine storage_engine.KvStorage,
-	persister *Persister, applyCh chan tinnraftpb.ApplyMsg) *Raft {
+	persister *Persister, applyCh chan *tinnraftpb.ApplyMsg) *Raft {
 	rf := &Raft{}
 	rf.peers = peers
 	rf.persister = MakePersister(dbEngine)
@@ -183,7 +183,7 @@ func (rf *Raft) applier() {
 				CommandIndex: int64(rf.lastApplied),
 			}
 			rf.mu.Unlock()
-			rf.applyCh <- applyMsg
+			rf.applyCh <- &applyMsg
 			rf.mu.Lock()
 		} else {
 			//阻塞等待commitindex发生变化
