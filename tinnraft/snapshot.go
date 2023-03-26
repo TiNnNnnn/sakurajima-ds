@@ -93,3 +93,12 @@ func (rf *Raft) Snapshot(index int, snapshot []byte) {
 	rf.isSnapshoting = false
 	rf.log.PersistSnapshot(snapshot)
 }
+
+// 读取持久化的快照信息
+func (rf *Raft) ReadSnapshot() []byte {
+	bytes, err := rf.log.ReadSnapshot()
+	if err != nil {
+		DLog("read snapshot error:%v", err.Error())
+	}
+	return bytes
+}

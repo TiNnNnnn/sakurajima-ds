@@ -99,7 +99,11 @@ func (rf *Raft) IsKilled() bool {
 	return atomic.LoadInt32(&rf.dead) == 1
 }
 
-// 向Leader提交一个请求
+/*
+用户请求到来和raft交互的入口函数是Propose，这个函数首先会查询当前节点状态，
+只有Leader节点才能处理提案（propose），之后会把用户操作的序列化之后的[]byte调用
+Append追加到自己的日志中，之后appendEntries将日志内容发送给集群中的Follower节点
+*/
 func (rf *Raft) Propose(payload []byte) (int, int, bool) {
 	rf.mu.Lock()
 	defer rf.mu.Unlock()

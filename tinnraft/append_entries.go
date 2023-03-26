@@ -2,8 +2,9 @@ package tinnraft
 
 import (
 	"context"
-	"fmt"
 	"sakurajima-ds/tinnraftpb"
+
+	_ "google.golang.org/grpc/peer"
 )
 
 // // 日志添加请求
@@ -28,39 +29,80 @@ import (
 // 	XLen   int
 // }
 
-
-
-
 func (rf *Raft) appendEntries(isHeartbeat bool) {
-	lastLog := rf.log.GetPersistLastEntry()
-	for peer := range rf.peers {
-		if peer == rf.me {
+	for _, peer := range rf.peers {
+		if int(peer.id) == rf.me {
+			//防止无意义的选举发生
 			rf.resetElectionTimer()
 			continue
 		}
-		if int(lastLog.Index) >= rf.nextIndex[peer] || isHeartbeat {
-			nextsend_index := rf.nextIndex[peer]
-			if nextsend_index <= 0 {
-				nextsend_index = 1
-			}
-			if int(lastLog.Index)+1 < nextsend_index {
-				nextsend_index = int(lastLog.Index)
-			}
-			nextsend_index_prev := rf.log.at(nextsend_index - 1)
 
-			args := tinnraftpb.AppendEntriesArgs{
-				Term:         int64(rf.currentTerm),
-				LeaderId:     int64(rf.me),
-				PrevLogIndex: int64(nextsend_index_prev.Index),
-				PrevLogTerm:  int64(nextsend_index_prev.Term),
-				Entries:      make([]*tinnraftpb.Entry, int(lastLog.Index)-nextsend_index+1),
-				LeaderCommit: int64(rf.commitIndex),
+		prevLogIndex := uint64(rf.nextIndex[peer.id] - 1)
+		/*
+		   在复制快照的时候先判断到peer的prevLogIndex,如果比当前日志的第一条
+		   索引号还小，就说明Leader已经把这条日志打到快照中了，此时构造
+		   InstallSnapshotArgs调用Snapshot RPC将快照数据发送给Followr节点
+		*/
+		if prevLogIndex < uint64(rf.log.GetfirstLog().Index) {
+			firstLog := rf.log.GetfirstLog()
+			snapShotArgs := &tinnraftpb.InstallSnapshotArgs{
+				Term:              int64(rf.currentTerm),
+				LeaderId:          int64(rf.me),
+				LastIncludedIndex: firstLog.Index,
+				LastIncludeTerm:   int64(firstLog.Term),
+				Data:              rf.ReadSnapshot(),
 			}
-			copy(args.Entries, rf.log.slice2(nextsend_index))
-			go rf.leaderSendEntries(peer, &args)
+			go rf.leaderSendSnapshots(int(peer.id), snapShotArgs)
 
+		} else {
+			lastLog := rf.log.GetPersistLastEntry()
+			if int(lastLog.Index) >= rf.nextIndex[peer.id] || isHeartbeat {
+				// nextsend_index := rf.nextIndex[peer.id]
+				// if nextsend_index <= 0 {
+				// 	nextsend_index = 1
+				// }
+				// if int(lastLog.Index)+1 < nextsend_index {
+				// 	nextsend_index = int(lastLog.Index)
+				// }
+				firstLogIndex := rf.log.GetPersistFirstEntry().Index
+				entires := make([]*tinnraftpb.Entry, len(rf.log.TruncatePersistLog(int64(prevLogIndex)+1-firstLogIndex)))
+				copy(entires, rf.log.TruncatePersistLog(int64(prevLogIndex)+1-firstLogIndex))
+				args := tinnraftpb.AppendEntriesArgs{
+					Term:         int64(rf.currentTerm),
+					LeaderId:     int64(rf.me),
+					PrevLogIndex: int64(prevLogIndex),
+					PrevLogTerm:  int64(rf.log.GetEntryWithoutLock(int64(prevLogIndex) - firstLogIndex).Term),
+					Entries:      entires,
+					LeaderCommit: int64(rf.commitIndex),
+				}
+				//copy(args.Entries, rf.log.slice2(nextsend_index))
+				go rf.leaderSendEntries(int(peer.id), &args)
+
+			}
 		}
 	}
+}
+
+func (rf *Raft) leaderSendSnapshots(serverId int, args *tinnraftpb.InstallSnapshotArgs) {
+	reply, err := rf.sendAppendSnapshots(serverId, args)
+	if err != nil {
+		return
+	}
+
+	rf.mu.Lock()
+	defer rf.mu.Unlock()
+
+	if reply != nil {
+		if rf.state == Leader && rf.currentTerm == int(reply.Term) {
+			if reply.Term > int64(rf.currentTerm) {
+				rf.setNewTerm(int(reply.Term))
+			} else {
+				rf.matchIndex[serverId] = int(args.LastIncludedIndex)
+				rf.nextIndex[serverId] = int(args.LastIncludedIndex) + 1
+			}
+		}
+	}
+
 }
 
 func (rf *Raft) leaderSendEntries(serverId int, args *tinnraftpb.AppendEntriesArgs) {
@@ -76,27 +118,27 @@ func (rf *Raft) leaderSendEntries(serverId int, args *tinnraftpb.AppendEntriesAr
 		rf.setNewTerm(int(reply.Term))
 		return
 	}
-	if int(args.Term) == rf.currentTerm {
+	if rf.state == Leader && int(args.Term) == rf.currentTerm {
 		if reply.Success { //追加日志成功
 			match := int(args.PrevLogIndex) + len(args.Entries)
 			next := match + 1
 			rf.nextIndex[serverId] = max(rf.nextIndex[serverId], next)
 			rf.matchIndex[serverId] = max(rf.matchIndex[serverId], match)
-			fmt.Printf("[%v]: %v 追加成功 next %v match %v\n", rf.me, serverId, rf.nextIndex[serverId], rf.matchIndex[serverId])
+			DLog("[%v]: %v 追加成功 next %v match %v\n", rf.me, serverId, rf.nextIndex[serverId], rf.matchIndex[serverId])
 		} else if reply.Conflict { //追加失败，产生冲突
-			fmt.Printf("[%v]: 冲突来自 %v %#v\n", rf.me, serverId, reply)
+			DLog("[%v]: 冲突来自 %v %#v\n", rf.me, serverId, reply)
 			if reply.XTerm == -1 { //preLogIndex发生冲突
 				rf.nextIndex[serverId] = int(reply.XLen)
 			} else { //preLogTerm发生冲突
 				lastLogInXTerm := rf.findLastLogInTerm(int(reply.XTerm))
-				fmt.Printf("[%v]: lastLogInXTerm %v\n", rf.me, lastLogInXTerm)
+				DLog("[%v]: lastLogInXTerm %v\n", rf.me, lastLogInXTerm)
 				if lastLogInXTerm > 0 {
 					rf.nextIndex[serverId] = lastLogInXTerm
 				} else {
 					rf.nextIndex[serverId] = int(reply.XIndex)
 				}
 			}
-			fmt.Printf("[%v]: leader nextIndex[%v] %v\n", rf.me, serverId, rf.nextIndex[serverId])
+			DLog("[%v]: leader nextIndex[%v] %v\n", rf.me, serverId, rf.nextIndex[serverId])
 		} else if rf.nextIndex[serverId] > 1 {
 			//减少nextIndex进行重发
 			rf.nextIndex[serverId]--
@@ -223,4 +265,8 @@ func (rf *Raft) HandleAppendEntries(args *tinnraftpb.AppendEntriesArgs, reply *t
 func (rf *Raft) sendAppendEntries(server int, args *tinnraftpb.AppendEntriesArgs) (*tinnraftpb.AppendEntriesReply, error) {
 	//ok := rf.peers[server].Call("Raft.AppendEntries", args, reply)
 	return (*rf.peers[server].raftServiceCli).AppendEntries(context.Background(), args)
+}
+
+func (rf *Raft) sendAppendSnapshots(server int, args *tinnraftpb.InstallSnapshotArgs) (*tinnraftpb.InstallSnapshotReply, error) {
+	return (*rf.peers[server].raftServiceCli).Snapshot(context.Background(), args)
 }
