@@ -43,8 +43,8 @@ func (rf *Raft) appendEntries(isHeartbeat bool) {
 		   索引号还小，就说明Leader已经把这条日志打到快照中了，此时构造
 		   InstallSnapshotArgs调用Snapshot RPC将快照数据发送给Followr节点
 		*/
-		if prevLogIndex < uint64(rf.log.GetfirstLog().Index) {
-			firstLog := rf.log.GetfirstLog()
+		if prevLogIndex < uint64(rf.log.GetPersistFirstEntry().Index) {
+			firstLog := rf.log.GetPersistFirstEntry()
 			snapShotArgs := &tinnraftpb.InstallSnapshotArgs{
 				Term:              int64(rf.currentTerm),
 				LeaderId:          int64(rf.me),
@@ -180,7 +180,7 @@ func (rf *Raft) leaderCommitRule() {
 // 从后往前查找任期为x的日志条目的索引
 func (rf *Raft) findLastLogInTerm(x int) int {
 	for i := int(rf.log.GetPersistLastEntry().Index); i > 0; i-- {
-		term := int(rf.log.at(i).Term)
+		term := int(rf.log.GetPersistEntryByidx(int64(i)).Term)
 		if term == x {
 			return i
 		} else if term < x {
@@ -219,29 +219,33 @@ func (rf *Raft) HandleAppendEntries(args *tinnraftpb.AppendEntriesArgs, reply *t
 		reply.Conflict = true
 		reply.XTerm = -1
 		reply.XIndex = -1
-		reply.XLen = int64(rf.log.LenLog())
+		reply.XLen = int64(rf.log.LogPersistLen())
 		return
 	}
+
 	//PrevLogTerm发生冲突
-	if int64(rf.log.at(int(args.PrevLogIndex)).Term) != args.PrevLogTerm {
+	if int64(rf.log.GetPersistEntryByidx(args.PrevLogIndex).Term) != args.PrevLogTerm {
 		reply.Conflict = true
-		xTerm := rf.log.at(int(args.PrevLogIndex)).Term
+		xTerm := rf.log.GetPersistEntryByidx(args.PrevLogIndex).Term
+		firstIndex := rf.log.GetPersistFirstEntry().Index
 		//找到上个任期的最后一条日志条目的索引，并记录为Xindex
-		for xIndex := args.PrevLogIndex; xIndex > 0; xIndex-- {
-			if rf.log.at(int(xIndex-1)).Term != xTerm {
+		for xIndex := args.PrevLogIndex; xIndex >= firstIndex; xIndex-- {
+			if rf.log.GetPersistEntryByidx(xIndex-1).Term != xTerm {
 				reply.XIndex = xIndex
 				break
 			}
 		}
 		reply.XTerm = int64(xTerm)
-		reply.XLen = int64(rf.log.LenLog())
+		reply.XLen = int64(rf.log.LogPersistLen())
 		return
 	}
 
 	for idx, entry := range args.Entries {
-		//如果follower中已经存在的日志条目和追加日志条目发生
-		//冲突(索引相同,但是任期不同),那么就删除这个已经存在
-		//的条目以及之后的所有条目
+		/*
+			如果follower中已经存在的日志条目和追加日志条目发生
+			冲突(索引相同,但是任期不同),那么就删除这个已经存在
+			的条目以及之后的所有条目
+		*/
 		if entry.Index <= rf.log.GetPersistLastEntry().Index &&
 			rf.log.GetPersistEntryByidx(entry.Index).Term != entry.Term {
 			rf.log.TruncatePersistLog(int64(entry.Index))
@@ -250,7 +254,7 @@ func (rf *Raft) HandleAppendEntries(args *tinnraftpb.AppendEntriesArgs, reply *t
 		//追加日志中尚未保存的任何新日志条目
 		if entry.Index > rf.log.GetPersistLastEntry().Index {
 			for _, newEntry := range args.Entries[idx:] {
-				rf.log.AppendLog(newEntry)
+				rf.log.PersistAppend(newEntry)
 			}
 			rf.persist()
 			break

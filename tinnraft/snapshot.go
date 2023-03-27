@@ -60,11 +60,11 @@ func (rf *Raft) CondInstallSnapshot(lastIncludedTerm int, lastIncludedIndex int,
 		return false
 	}
 
-	if lastIncludedIndex > int(rf.log.GetlastLog().Index) {
+	if lastIncludedIndex > int(rf.log.GetPersistLastEntry().Index) {
 		rf.log.ReInitPersistLog()
 	} else {
 		//删除日志
-		rf.log.TruncatePersistLogWithDel(int64(lastIncludedIndex) - rf.log.GetfirstLog().Index)
+		rf.log.TruncatePersistLogWithDel(int64(lastIncludedIndex) - rf.log.GetPersistFirstEntry().Index)
 		//将第一个操作日志设置为空
 		rf.log.SetPersistFirstData([]byte{})
 	}

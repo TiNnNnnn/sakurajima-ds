@@ -1,9 +1,9 @@
 package test
 
-import(
-	"sakurajima-ds/tinnraft"
-)
+// import(
+// 	"sakurajima-ds/tinnraft"
+// )
 
-func test(){
-	
-}
+// func test(){
+
+// }

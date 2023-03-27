@@ -1,10 +1,8 @@
 package tinnraft
 
 import (
-	"fmt"
 	"sakurajima-ds/storage_engine"
 	"sakurajima-ds/tinnraftpb"
-	"strings"
 	"sync"
 )
 
@@ -36,9 +34,10 @@ type LogOperation interface {
 }
 
 /*
-内存存储日志
+内存存储日志,已经弃用
 */
 
+/*
 // 初始化一份日志,并添加一条空日志
 func makeEmptyLog() *Log {
 	empEnt := &tinnraftpb.Entry{}
@@ -120,3 +119,4 @@ func (l *Log) String() string {
 	//将num每个字段用 | 连接并返回为字符串
 	return fmt.Sprint(strings.Join(nums, "|"))
 }
+*/

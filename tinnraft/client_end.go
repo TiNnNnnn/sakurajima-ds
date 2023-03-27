@@ -3,7 +3,6 @@ package tinnraft
 import (
 	"fmt"
 	"sakurajima-ds/tinnraftpb"
-
 	"google.golang.org/grpc"
 )
 

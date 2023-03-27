@@ -207,7 +207,8 @@ func (log *Log) PersistAppend(entry *tinnraftpb.Entry) {
 func (log *Log) GetPersistEntryByidx(idx int64) *tinnraftpb.Entry {
 	log.mu.Lock()
 	defer log.mu.Unlock()
-	return log.GetEntryWithoutLock(idx)
+	firstIndex := log.FirstLogIdx()
+	return log.GetEntryWithoutLock(idx - int64(firstIndex))
 }
 
 // 获取日志,工具函数

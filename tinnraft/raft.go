@@ -12,8 +12,8 @@ type RaftState string
 
 const (
 	Follower  RaftState = "Follower"
-	Candidate           = "Candidate"
-	Leader              = "Leader"
+	Candidate RaftState = "Candidate"
+	Leader    RaftState = "Leader"
 )
 
 type Raft struct {
@@ -65,7 +65,7 @@ func MakeRaft(peers []*ClientEnd, me int, dbEngine storage_engine.KvStorage,
 	rf.resetElectionTimer()
 
 	//日志初始化,加入一个空日志
-	rf.log = makeEmptyLog()
+	rf.log = MakePersister(dbEngine)
 
 	rf.commitIndex = 0
 	rf.lastApplied = 0
@@ -126,7 +126,7 @@ func (rf *Raft) AppendNewCommand(command []byte) *tinnraftpb.Entry {
 		Term:  uint64(rf.currentTerm),
 		Data:  command,
 	}
-	rf.log.AppendLog(newEntry)
+	rf.log.PersistAppend(newEntry)
 	rf.persister.PersistRaftState(int64(rf.currentTerm), int64(rf.votedFor))
 	return newEntry
 }
@@ -184,7 +184,7 @@ func (rf *Raft) applier() {
 			commitIndex := rf.commitIndex
 			lastApplied := rf.lastApplied
 			entries := make([]*tinnraftpb.Entry, commitIndex-lastApplied)
-			copy(entries, rf.log.GetInterLog(lastApplied+1-int(firstIndex), commitIndex-int(firstIndex)))
+			copy(entries, rf.log.GetPersistInterLog(int64(lastApplied)+1-int64(firstIndex), int64(commitIndex)-int64(firstIndex)))
 
 			rf.mu.Unlock()
 			for _, entry := range entries {
@@ -205,6 +205,13 @@ func (rf *Raft) applier() {
 			rf.applyCond.Wait()
 		}
 	}
+}
+
+// 获取日志长度
+func (rf *Raft) LogCount() int {
+	rf.mu.Lock()
+	defer rf.mu.Unlock()
+	return rf.log.LogPersistLen()
 }
 
 // 关闭所有rpc连接
