@@ -66,6 +66,64 @@ func (EntryType) EnumDescriptor() ([]byte, []int) {
 	return file_tinnraft_proto_rawDescGZIP(), []int{0}
 }
 
+type OpType int32
+
+const (
+	OpType_Put           OpType = 0
+	OpType_Append        OpType = 1
+	OpType_Get           OpType = 2
+	OpType_ConfigChange  OpType = 3
+	OpType_DeleteBuckets OpType = 4
+	OpType_InsertBuckets OpType = 5
+)
+
+// Enum value maps for OpType.
+var (
+	OpType_name = map[int32]string{
+		0: "Put",
+		1: "Append",
+		2: "Get",
+		3: "ConfigChange",
+		4: "DeleteBuckets",
+		5: "InsertBuckets",
+	}
+	OpType_value = map[string]int32{
+		"Put":           0,
+		"Append":        1,
+		"Get":           2,
+		"ConfigChange":  3,
+		"DeleteBuckets": 4,
+		"InsertBuckets": 5,
+	}
+)
+
+func (x OpType) Enum() *OpType {
+	p := new(OpType)
+	*p = x
+	return p
+}
+
+func (x OpType) String() string {
+	return protoimpl.X.EnumStringOf(x.Descriptor(), protoreflect.EnumNumber(x))
+}
+
+func (OpType) Descriptor() protoreflect.EnumDescriptor {
+	return file_tinnraft_proto_enumTypes[1].Descriptor()
+}
+
+func (OpType) Type() protoreflect.EnumType {
+	return &file_tinnraft_proto_enumTypes[1]
+}
+
+func (x OpType) Number() protoreflect.EnumNumber {
+	return protoreflect.EnumNumber(x)
+}
+
+// Deprecated: Use OpType.Descriptor instead.
+func (OpType) EnumDescriptor() ([]byte, []int) {
+	return file_tinnraft_proto_rawDescGZIP(), []int{1}
+}
+
 type RequestVoteArgs struct {
 	state         protoimpl.MessageState
 	sizeCache     protoimpl.SizeCache
@@ -666,6 +724,156 @@ func (x *InstallSnapshotReply) GetTerm() int64 {
 	return 0
 }
 
+type CommandArgs struct {
+	state         protoimpl.MessageState
+	sizeCache     protoimpl.SizeCache
+	unknownFields protoimpl.UnknownFields
+
+	Key       string `protobuf:"bytes,1,opt,name=Key,proto3" json:"Key,omitempty"`
+	Value     string `protobuf:"bytes,2,opt,name=Value,proto3" json:"Value,omitempty"`
+	OpType    OpType `protobuf:"varint,3,opt,name=Op_type,json=OpType,proto3,enum=pbs.OpType" json:"Op_type,omitempty"`
+	ClientId  int64  `protobuf:"varint,4,opt,name=Client_id,json=ClientId,proto3" json:"Client_id,omitempty"`
+	CommandId int64  `protobuf:"varint,5,opt,name=command_id,json=commandId,proto3" json:"command_id,omitempty"`
+	Context   []byte `protobuf:"bytes,6,opt,name=context,proto3" json:"context,omitempty"`
+}
+
+func (x *CommandArgs) Reset() {
+	*x = CommandArgs{}
+	if protoimpl.UnsafeEnabled {
+		mi := &file_tinnraft_proto_msgTypes[8]
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		ms.StoreMessageInfo(mi)
+	}
+}
+
+func (x *CommandArgs) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*CommandArgs) ProtoMessage() {}
+
+func (x *CommandArgs) ProtoReflect() protoreflect.Message {
+	mi := &file_tinnraft_proto_msgTypes[8]
+	if protoimpl.UnsafeEnabled && x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use CommandArgs.ProtoReflect.Descriptor instead.
+func (*CommandArgs) Descriptor() ([]byte, []int) {
+	return file_tinnraft_proto_rawDescGZIP(), []int{8}
+}
+
+func (x *CommandArgs) GetKey() string {
+	if x != nil {
+		return x.Key
+	}
+	return ""
+}
+
+func (x *CommandArgs) GetValue() string {
+	if x != nil {
+		return x.Value
+	}
+	return ""
+}
+
+func (x *CommandArgs) GetOpType() OpType {
+	if x != nil {
+		return x.OpType
+	}
+	return OpType_Put
+}
+
+func (x *CommandArgs) GetClientId() int64 {
+	if x != nil {
+		return x.ClientId
+	}
+	return 0
+}
+
+func (x *CommandArgs) GetCommandId() int64 {
+	if x != nil {
+		return x.CommandId
+	}
+	return 0
+}
+
+func (x *CommandArgs) GetContext() []byte {
+	if x != nil {
+		return x.Context
+	}
+	return nil
+}
+
+type CommandReply struct {
+	state         protoimpl.MessageState
+	sizeCache     protoimpl.SizeCache
+	unknownFields protoimpl.UnknownFields
+
+	Value    string `protobuf:"bytes,1,opt,name=Value,proto3" json:"Value,omitempty"`
+	LeaderId int64  `protobuf:"varint,2,opt,name=LeaderId,proto3" json:"LeaderId,omitempty"`
+	ErrCode  int64  `protobuf:"varint,3,opt,name=ErrCode,proto3" json:"ErrCode,omitempty"`
+}
+
+func (x *CommandReply) Reset() {
+	*x = CommandReply{}
+	if protoimpl.UnsafeEnabled {
+		mi := &file_tinnraft_proto_msgTypes[9]
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		ms.StoreMessageInfo(mi)
+	}
+}
+
+func (x *CommandReply) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*CommandReply) ProtoMessage() {}
+
+func (x *CommandReply) ProtoReflect() protoreflect.Message {
+	mi := &file_tinnraft_proto_msgTypes[9]
+	if protoimpl.UnsafeEnabled && x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use CommandReply.ProtoReflect.Descriptor instead.
+func (*CommandReply) Descriptor() ([]byte, []int) {
+	return file_tinnraft_proto_rawDescGZIP(), []int{9}
+}
+
+func (x *CommandReply) GetValue() string {
+	if x != nil {
+		return x.Value
+	}
+	return ""
+}
+
+func (x *CommandReply) GetLeaderId() int64 {
+	if x != nil {
+		return x.LeaderId
+	}
+	return 0
+}
+
+func (x *CommandReply) GetErrCode() int64 {
+	if x != nil {
+		return x.ErrCode
+	}
+	return 0
+}
+
 var File_tinnraft_proto protoreflect.FileDescriptor
 
 var file_tinnraft_proto_rawDesc = []byte{
@@ -746,10 +954,33 @@ var file_tinnraft_proto_rawDesc = []byte{
 	0x44, 0x61, 0x74, 0x61, 0x22, 0x2a, 0x0a, 0x14, 0x49, 0x6e, 0x73, 0x74, 0x61, 0x6c, 0x6c, 0x53,
 	0x6e, 0x61, 0x70, 0x73, 0x68, 0x6f, 0x74, 0x52, 0x65, 0x70, 0x6c, 0x79, 0x12, 0x12, 0x0a, 0x04,
 	0x54, 0x65, 0x72, 0x6d, 0x18, 0x01, 0x20, 0x01, 0x28, 0x03, 0x52, 0x04, 0x54, 0x65, 0x72, 0x6d,
+	0x22, 0xb1, 0x01, 0x0a, 0x0b, 0x43, 0x6f, 0x6d, 0x6d, 0x61, 0x6e, 0x64, 0x41, 0x72, 0x67, 0x73,
+	0x12, 0x10, 0x0a, 0x03, 0x4b, 0x65, 0x79, 0x18, 0x01, 0x20, 0x01, 0x28, 0x09, 0x52, 0x03, 0x4b,
+	0x65, 0x79, 0x12, 0x14, 0x0a, 0x05, 0x56, 0x61, 0x6c, 0x75, 0x65, 0x18, 0x02, 0x20, 0x01, 0x28,
+	0x09, 0x52, 0x05, 0x56, 0x61, 0x6c, 0x75, 0x65, 0x12, 0x24, 0x0a, 0x07, 0x4f, 0x70, 0x5f, 0x74,
+	0x79, 0x70, 0x65, 0x18, 0x03, 0x20, 0x01, 0x28, 0x0e, 0x32, 0x0b, 0x2e, 0x70, 0x62, 0x73, 0x2e,
+	0x4f, 0x70, 0x54, 0x79, 0x70, 0x65, 0x52, 0x06, 0x4f, 0x70, 0x54, 0x79, 0x70, 0x65, 0x12, 0x1b,
+	0x0a, 0x09, 0x43, 0x6c, 0x69, 0x65, 0x6e, 0x74, 0x5f, 0x69, 0x64, 0x18, 0x04, 0x20, 0x01, 0x28,
+	0x03, 0x52, 0x08, 0x43, 0x6c, 0x69, 0x65, 0x6e, 0x74, 0x49, 0x64, 0x12, 0x1d, 0x0a, 0x0a, 0x63,
+	0x6f, 0x6d, 0x6d, 0x61, 0x6e, 0x64, 0x5f, 0x69, 0x64, 0x18, 0x05, 0x20, 0x01, 0x28, 0x03, 0x52,
+	0x09, 0x63, 0x6f, 0x6d, 0x6d, 0x61, 0x6e, 0x64, 0x49, 0x64, 0x12, 0x18, 0x0a, 0x07, 0x63, 0x6f,
+	0x6e, 0x74, 0x65, 0x78, 0x74, 0x18, 0x06, 0x20, 0x01, 0x28, 0x0c, 0x52, 0x07, 0x63, 0x6f, 0x6e,
+	0x74, 0x65, 0x78, 0x74, 0x22, 0x5a, 0x0a, 0x0c, 0x43, 0x6f, 0x6d, 0x6d, 0x61, 0x6e, 0x64, 0x52,
+	0x65, 0x70, 0x6c, 0x79, 0x12, 0x14, 0x0a, 0x05, 0x56, 0x61, 0x6c, 0x75, 0x65, 0x18, 0x01, 0x20,
+	0x01, 0x28, 0x09, 0x52, 0x05, 0x56, 0x61, 0x6c, 0x75, 0x65, 0x12, 0x1a, 0x0a, 0x08, 0x4c, 0x65,
+	0x61, 0x64, 0x65, 0x72, 0x49, 0x64, 0x18, 0x02, 0x20, 0x01, 0x28, 0x03, 0x52, 0x08, 0x4c, 0x65,
+	0x61, 0x64, 0x65, 0x72, 0x49, 0x64, 0x12, 0x18, 0x0a, 0x07, 0x45, 0x72, 0x72, 0x43, 0x6f, 0x64,
+	0x65, 0x18, 0x03, 0x20, 0x01, 0x28, 0x03, 0x52, 0x07, 0x45, 0x72, 0x72, 0x43, 0x6f, 0x64, 0x65,
 	0x2a, 0x2f, 0x0a, 0x09, 0x45, 0x6e, 0x74, 0x72, 0x79, 0x54, 0x79, 0x70, 0x65, 0x12, 0x0d, 0x0a,
 	0x09, 0x45, 0x6e, 0x74, 0x72, 0x79, 0x44, 0x61, 0x74, 0x61, 0x10, 0x00, 0x12, 0x13, 0x0a, 0x0f,
 	0x45, 0x6e, 0x74, 0x72, 0x79, 0x43, 0x6f, 0x6e, 0x66, 0x55, 0x70, 0x64, 0x61, 0x74, 0x65, 0x10,
-	0x01, 0x32, 0xd2, 0x01, 0x0a, 0x0b, 0x52, 0x61, 0x66, 0x74, 0x53, 0x65, 0x72, 0x76, 0x69, 0x63,
+	0x01, 0x2a, 0x5e, 0x0a, 0x06, 0x4f, 0x70, 0x54, 0x79, 0x70, 0x65, 0x12, 0x07, 0x0a, 0x03, 0x50,
+	0x75, 0x74, 0x10, 0x00, 0x12, 0x0a, 0x0a, 0x06, 0x41, 0x70, 0x70, 0x65, 0x6e, 0x64, 0x10, 0x01,
+	0x12, 0x07, 0x0a, 0x03, 0x47, 0x65, 0x74, 0x10, 0x02, 0x12, 0x10, 0x0a, 0x0c, 0x43, 0x6f, 0x6e,
+	0x66, 0x69, 0x67, 0x43, 0x68, 0x61, 0x6e, 0x67, 0x65, 0x10, 0x03, 0x12, 0x11, 0x0a, 0x0d, 0x44,
+	0x65, 0x6c, 0x65, 0x74, 0x65, 0x42, 0x75, 0x63, 0x6b, 0x65, 0x74, 0x73, 0x10, 0x04, 0x12, 0x11,
+	0x0a, 0x0d, 0x49, 0x6e, 0x73, 0x65, 0x72, 0x74, 0x42, 0x75, 0x63, 0x6b, 0x65, 0x74, 0x73, 0x10,
+	0x05, 0x32, 0xd2, 0x01, 0x0a, 0x0b, 0x52, 0x61, 0x66, 0x74, 0x53, 0x65, 0x72, 0x76, 0x69, 0x63,
 	0x65, 0x12, 0x3c, 0x0a, 0x0b, 0x52, 0x65, 0x71, 0x75, 0x65, 0x73, 0x74, 0x56, 0x6f, 0x74, 0x65,
 	0x12, 0x14, 0x2e, 0x70, 0x62, 0x73, 0x2e, 0x52, 0x65, 0x71, 0x75, 0x65, 0x73, 0x74, 0x56, 0x6f,
 	0x74, 0x65, 0x41, 0x72, 0x67, 0x73, 0x1a, 0x15, 0x2e, 0x70, 0x62, 0x73, 0x2e, 0x52, 0x65, 0x71,
@@ -778,33 +1009,37 @@ func file_tinnraft_proto_rawDescGZIP() []byte {
 	return file_tinnraft_proto_rawDescData
 }
 
-var file_tinnraft_proto_enumTypes = make([]protoimpl.EnumInfo, 1)
-var file_tinnraft_proto_msgTypes = make([]protoimpl.MessageInfo, 8)
+var file_tinnraft_proto_enumTypes = make([]protoimpl.EnumInfo, 2)
+var file_tinnraft_proto_msgTypes = make([]protoimpl.MessageInfo, 10)
 var file_tinnraft_proto_goTypes = []interface{}{
 	(EntryType)(0),               // 0: pbs.EntryType
-	(*RequestVoteArgs)(nil),      // 1: pbs.RequestVoteArgs
-	(*RequestVoteReply)(nil),     // 2: pbs.RequestVoteReply
-	(*Entry)(nil),                // 3: pbs.Entry
-	(*AppendEntriesArgs)(nil),    // 4: pbs.AppendEntriesArgs
-	(*AppendEntriesReply)(nil),   // 5: pbs.AppendEntriesReply
-	(*ApplyMsg)(nil),             // 6: pbs.ApplyMsg
-	(*InstallSnapshotArgs)(nil),  // 7: pbs.InstallSnapshotArgs
-	(*InstallSnapshotReply)(nil), // 8: pbs.InstallSnapshotReply
+	(OpType)(0),                  // 1: pbs.OpType
+	(*RequestVoteArgs)(nil),      // 2: pbs.RequestVoteArgs
+	(*RequestVoteReply)(nil),     // 3: pbs.RequestVoteReply
+	(*Entry)(nil),                // 4: pbs.Entry
+	(*AppendEntriesArgs)(nil),    // 5: pbs.AppendEntriesArgs
+	(*AppendEntriesReply)(nil),   // 6: pbs.AppendEntriesReply
+	(*ApplyMsg)(nil),             // 7: pbs.ApplyMsg
+	(*InstallSnapshotArgs)(nil),  // 8: pbs.InstallSnapshotArgs
+	(*InstallSnapshotReply)(nil), // 9: pbs.InstallSnapshotReply
+	(*CommandArgs)(nil),          // 10: pbs.CommandArgs
+	(*CommandReply)(nil),         // 11: pbs.CommandReply
 }
 var file_tinnraft_proto_depIdxs = []int32{
 	0, // 0: pbs.Entry.Type:type_name -> pbs.EntryType
-	3, // 1: pbs.AppendEntriesArgs.Entries:type_name -> pbs.Entry
-	1, // 2: pbs.RaftService.RequestVote:input_type -> pbs.RequestVoteArgs
-	4, // 3: pbs.RaftService.AppendEntries:input_type -> pbs.AppendEntriesArgs
-	7, // 4: pbs.RaftService.Snapshot:input_type -> pbs.InstallSnapshotArgs
-	2, // 5: pbs.RaftService.RequestVote:output_type -> pbs.RequestVoteReply
-	5, // 6: pbs.RaftService.AppendEntries:output_type -> pbs.AppendEntriesReply
-	8, // 7: pbs.RaftService.Snapshot:output_type -> pbs.InstallSnapshotReply
-	5, // [5:8] is the sub-list for method output_type
-	2, // [2:5] is the sub-list for method input_type
-	2, // [2:2] is the sub-list for extension type_name
-	2, // [2:2] is the sub-list for extension extendee
-	0, // [0:2] is the sub-list for field type_name
+	4, // 1: pbs.AppendEntriesArgs.Entries:type_name -> pbs.Entry
+	1, // 2: pbs.CommandArgs.Op_type:type_name -> pbs.OpType
+	2, // 3: pbs.RaftService.RequestVote:input_type -> pbs.RequestVoteArgs
+	5, // 4: pbs.RaftService.AppendEntries:input_type -> pbs.AppendEntriesArgs
+	8, // 5: pbs.RaftService.Snapshot:input_type -> pbs.InstallSnapshotArgs
+	3, // 6: pbs.RaftService.RequestVote:output_type -> pbs.RequestVoteReply
+	6, // 7: pbs.RaftService.AppendEntries:output_type -> pbs.AppendEntriesReply
+	9, // 8: pbs.RaftService.Snapshot:output_type -> pbs.InstallSnapshotReply
+	6, // [6:9] is the sub-list for method output_type
+	3, // [3:6] is the sub-list for method input_type
+	3, // [3:3] is the sub-list for extension type_name
+	3, // [3:3] is the sub-list for extension extendee
+	0, // [0:3] is the sub-list for field type_name
 }
 
 func init() { file_tinnraft_proto_init() }
@@ -909,14 +1144,38 @@ func file_tinnraft_proto_init() {
 				return nil
 			}
 		}
+		file_tinnraft_proto_msgTypes[8].Exporter = func(v interface{}, i int) interface{} {
+			switch v := v.(*CommandArgs); i {
+			case 0:
+				return &v.state
+			case 1:
+				return &v.sizeCache
+			case 2:
+				return &v.unknownFields
+			default:
+				return nil
+			}
+		}
+		file_tinnraft_proto_msgTypes[9].Exporter = func(v interface{}, i int) interface{} {
+			switch v := v.(*CommandReply); i {
+			case 0:
+				return &v.state
+			case 1:
+				return &v.sizeCache
+			case 2:
+				return &v.unknownFields
+			default:
+				return nil
+			}
+		}
 	}
 	type x struct{}
 	out := protoimpl.TypeBuilder{
 		File: protoimpl.DescBuilder{
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: file_tinnraft_proto_rawDesc,
-			NumEnums:      1,
-			NumMessages:   8,
+			NumEnums:      2,
+			NumMessages:   10,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

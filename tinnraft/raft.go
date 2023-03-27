@@ -51,7 +51,7 @@ type Raft struct {
 
 // 初始化一个raft主机
 func MakeRaft(peers []*ClientEnd, me int, dbEngine storage_engine.KvStorage,
-	persister *Persister, applyCh chan *tinnraftpb.ApplyMsg) *Raft {
+	applyCh chan *tinnraftpb.ApplyMsg) *Raft {
 	rf := &Raft{}
 	rf.peers = peers
 	rf.persister = MakePersister(dbEngine)

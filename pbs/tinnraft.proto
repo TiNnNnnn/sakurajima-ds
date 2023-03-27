@@ -75,6 +75,31 @@ message InstallSnapshotReply{
 	int64 Term = 1;
 }
 
+enum OpType{
+	Put = 0;
+	Append = 1;
+	Get = 2;
+	ConfigChange = 3;
+	DeleteBuckets = 4;
+	InsertBuckets = 5;
+}
+
+message CommandArgs{
+	string Key = 1;
+	string Value = 2;
+	OpType Op_type = 3;
+	int64 Client_id = 4;
+	int64 command_id = 5;
+	bytes context = 6;
+
+}
+
+message CommandReply{
+	string Value = 1;
+	int64 LeaderId = 2;
+	int64 ErrCode = 3;
+}
+
 
 service RaftService{
     rpc RequestVote (RequestVoteArgs) returns (RequestVoteReply){}
