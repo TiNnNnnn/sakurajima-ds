@@ -175,20 +175,31 @@ func (rf *Raft) apply() {
 
 // 更新LastAppId
 func (rf *Raft) applier() {
-	rf.mu.Lock()
-	defer rf.mu.Lock()
-
 	for !rf.IsKilled() {
+		rf.mu.Lock()
+
 		if rf.commitIndex > rf.lastApplied && rf.log.GetPersistLastEntry().Index > int64(rf.lastApplied) {
-			rf.lastApplied++
-			applyMsg := tinnraftpb.ApplyMsg{
-				CommandValid: true,
-				Command:      rf.log.at(rf.lastApplied).Data,
-				CommandIndex: int64(rf.lastApplied),
-			}
+
+			firstIndex := rf.log.FirstLogIdx()
+			commitIndex := rf.commitIndex
+			lastApplied := rf.lastApplied
+			entries := make([]*tinnraftpb.Entry, commitIndex-lastApplied)
+			copy(entries, rf.log.GetInterLog(lastApplied+1-int(firstIndex), commitIndex-int(firstIndex)))
+
 			rf.mu.Unlock()
-			rf.applyCh <- &applyMsg
+			for _, entry := range entries {
+				applyMsg := tinnraftpb.ApplyMsg{
+					CommandValid: true,
+					Command:      entry.Data,
+					CommandIndex: int64(entry.Index),
+					CommandTerm:  int64(entry.Term),
+				}
+				//向applyCh写入数据，提醒应用层将操作应用到状态机
+				rf.applyCh <- &applyMsg
+			}
 			rf.mu.Lock()
+			rf.lastApplied = max(rf.lastApplied, commitIndex)
+			rf.mu.Unlock()
 		} else {
 			//阻塞等待commitindex发生变化
 			rf.applyCond.Wait()

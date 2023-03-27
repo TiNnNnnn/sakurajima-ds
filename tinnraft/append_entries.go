@@ -119,17 +119,21 @@ func (rf *Raft) leaderSendEntries(serverId int, args *tinnraftpb.AppendEntriesAr
 		return
 	}
 	if rf.state == Leader && int(args.Term) == rf.currentTerm {
-		if reply.Success { //追加日志成功
+		if reply.Success {
+			//追加日志成功
 			match := int(args.PrevLogIndex) + len(args.Entries)
 			next := match + 1
 			rf.nextIndex[serverId] = max(rf.nextIndex[serverId], next)
 			rf.matchIndex[serverId] = max(rf.matchIndex[serverId], match)
-			DLog("[%v]: %v 追加成功 next %v match %v\n", rf.me, serverId, rf.nextIndex[serverId], rf.matchIndex[serverId])
-		} else if reply.Conflict { //追加失败，产生冲突
-			DLog("[%v]: 冲突来自 %v %#v\n", rf.me, serverId, reply)
-			if reply.XTerm == -1 { //preLogIndex发生冲突
+			DLog("[%v]: append entries to %v success, next %v match %v\n", rf.me, serverId, rf.nextIndex[serverId], rf.matchIndex[serverId])
+		} else if reply.Conflict {
+			//追加失败，产生冲突
+			DLog("[%v]: confict from %v: %#v\n", rf.me, serverId, reply)
+			if reply.XTerm == -1 {
+				//preLogIndex发生冲突
 				rf.nextIndex[serverId] = int(reply.XLen)
-			} else { //preLogTerm发生冲突
+			} else {
+				//preLogTerm发生冲突
 				lastLogInXTerm := rf.findLastLogInTerm(int(reply.XTerm))
 				DLog("[%v]: lastLogInXTerm %v\n", rf.me, lastLogInXTerm)
 				if lastLogInXTerm > 0 {
@@ -156,7 +160,7 @@ func (rf *Raft) leaderCommitRule() {
 	}
 
 	for k := rf.commitIndex + 1; k <= int(rf.log.GetPersistLastEntry().Index); k++ {
-		if int(rf.log.at(k).Term) != rf.currentTerm {
+		if int(rf.log.GetPersistEntryByidx(int64(k)).Term) != rf.currentTerm {
 			continue
 		}
 		counter := 1
@@ -201,8 +205,9 @@ func (rf *Raft) HandleAppendEntries(args *tinnraftpb.AppendEntriesArgs, reply *t
 	if args.Term < int64(rf.currentTerm) {
 		return
 	}
-	rf.resetElectionTimer()
 
+	rf.leaderId = int(args.LeaderId)
+	rf.resetElectionTimer()
 	//Candidater在选举中收到了来自其他Leader的心跳，且任期更大
 	//说明选举失败，变回Follower
 	if rf.state == Candidate {
@@ -238,14 +243,15 @@ func (rf *Raft) HandleAppendEntries(args *tinnraftpb.AppendEntriesArgs, reply *t
 		//冲突(索引相同,但是任期不同),那么就删除这个已经存在
 		//的条目以及之后的所有条目
 		if entry.Index <= rf.log.GetPersistLastEntry().Index &&
-			rf.log.at(int(entry.Index)).Term != entry.Term {
+			rf.log.GetPersistEntryByidx(entry.Index).Term != entry.Term {
 			rf.log.TruncatePersistLog(int64(entry.Index))
 			rf.persist()
 		}
 		//追加日志中尚未保存的任何新日志条目
 		if entry.Index > rf.log.GetPersistLastEntry().Index {
-
-			rf.log.append2(args.Entries[idx:])
+			for _, newEntry := range args.Entries[idx:] {
+				rf.log.AppendLog(newEntry)
+			}
 			rf.persist()
 			break
 		}
