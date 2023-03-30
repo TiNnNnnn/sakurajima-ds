@@ -21,7 +21,7 @@ func (rf *Raft) leaderElection() {
 
 	candiate_lastLog := rf.log.GetPersistLastEntry()
 
-	DLog("[%v]: start leader election, term %d\n", rf.me, rf.currentTerm)
+	DLog("[%v]: term: %v | start leader election\n", rf.me, rf.currentTerm)
 
 	args := tinnraftpb.RequestVoteArgs{
 		Term:         int64(term),
@@ -44,7 +44,7 @@ func (rf *Raft) leaderElection() {
 // 重置选举超时计时
 func (rf *Raft) resetElectionTimer() {
 	t := time.Now()
-	electionTimeout := time.Duration(150+rand.Intn(150)) * time.Millisecond
+	electionTimeout := time.Duration(3000+rand.Intn(3000)) * time.Millisecond
 	rf.electionTime = t.Add(electionTimeout)
 }
 

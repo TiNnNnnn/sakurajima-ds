@@ -47,11 +47,11 @@ func (log *Log) ReadRaftState() (curTerm int64, votedFor int64) {
 func (log *Log) GetPersistFirstEntry() *tinnraftpb.Entry {
 	log.mu.Lock()
 	defer log.mu.Unlock()
-	k, v, err := log.engine.GetPerixFirst(string(RAFTLOG_PREFIX))
+	_, v, err := log.engine.GetPerixFirst(string(RAFTLOG_PREFIX))
 	if err != nil {
 		panic(err)
 	}
-	DLog("get the first log with id: %d", DecodeLogKey(k))
+	//DLog("get the first log with id: %d", DecodeLogKey(k))
 	return DecodeEntry(v)
 
 }

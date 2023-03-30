@@ -45,11 +45,17 @@ type KvServer struct {
 	lastApplied int
 	stm         StateMachine
 
+	//lastOperations map[int64]OperationContext
+
 	notifyChans map[int]chan *tinnraftpb.CommandReply
 
 	stopApplyCh chan interface{}
 
 	tinnraftpb.UnimplementedRaftServiceServer
+}
+
+func (kvs *KvServer) GetTinnRaft() *tinnraft.Raft {
+	return kvs.tinnRf
 }
 
 func MakeKvServer(serverId int) *KvServer {

@@ -61,7 +61,8 @@ func MakeRaft(peers []*ClientEnd, me int, dbEngine storage_engine.KvStorage,
 	rf.state = Follower
 	rf.currentTerm = 0
 	rf.votedFor = -1
-	rf.heartBeat = 50 * time.Millisecond
+	//rf.heartBeat = 50 * time.Millisecond
+	rf.heartBeat = 1000 * time.Millisecond
 	rf.resetElectionTimer()
 
 	//日志初始化,加入一个空日志
@@ -79,6 +80,8 @@ func MakeRaft(peers []*ClientEnd, me int, dbEngine storage_engine.KvStorage,
 
 	// initialize from state persisted before a crash
 	rf.readPersist()
+
+	DLog("[%v]: the last log idx is %v", rf.me, rf.log.GetPersistLastEntry().Index)
 
 	//开启一个协程进行选举
 	go rf.ticker()
@@ -112,6 +115,10 @@ func (rf *Raft) Propose(payload []byte) (int, int, bool) {
 		return -1, -1, false
 	}
 
+	if rf.isSnapshoting {
+		return -1, -1, false
+	}
+
 	newEntry := rf.AppendNewCommand(payload)
 	rf.appendEntries(false)
 
@@ -128,6 +135,7 @@ func (rf *Raft) AppendNewCommand(command []byte) *tinnraftpb.Entry {
 	}
 	rf.log.PersistAppend(newEntry)
 	rf.persister.PersistRaftState(int64(rf.currentTerm), int64(rf.votedFor))
+	//DLog("[%v]: term %v start %v", rf.me, rf.currentTerm, rf.log)
 	return newEntry
 }
 
@@ -218,5 +226,27 @@ func (rf *Raft) LogCount() int {
 func (rf *Raft) CloseAllConn() {
 	for _, peer := range rf.peers {
 		peer.CloseConns()
+	}
+}
+
+func (rf *Raft) ChangeRaftState(state RaftState) {
+	if state == rf.state {
+		return
+	}
+	rf.state = state
+	DLog("change state to %v", state)
+
+	switch state {
+	case Follower:
+		rf.resetElectionTimer()
+	case Candidate:
+	case Leader:
+		lastLog := rf.log.GetPersistLastEntry()
+		rf.leaderId = rf.me
+		for i := 0; i < len(rf.peers); i++ {
+			rf.matchIndex[i] = 0
+			rf.nextIndex[i] = int(lastLog.Index)
+		}
+		rf.resetElectionTimer()
 	}
 }

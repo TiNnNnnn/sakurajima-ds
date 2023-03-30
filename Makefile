@@ -1,4 +1,4 @@
-kv_server:
-	go build -o output/kv_server cmd/kvraft/kvserver.go
+kvserver:
+	go build -o output/kvserver test/kvserver.go
 clean:
 	rm -rf output/*

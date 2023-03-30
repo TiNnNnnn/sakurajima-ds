@@ -32,7 +32,7 @@ import (
 func (rf *Raft) appendEntries(isHeartbeat bool) {
 	for _, peer := range rf.peers {
 		if int(peer.id) == rf.me {
-			//防止无意义的选举发生
+			//防止Leader节点无意义的选举发送
 			rf.resetElectionTimer()
 			continue
 		}
@@ -84,10 +84,14 @@ func (rf *Raft) appendEntries(isHeartbeat bool) {
 }
 
 func (rf *Raft) leaderSendSnapshots(serverId int, args *tinnraftpb.InstallSnapshotArgs) {
+	DLog("[%v]: term %v | send snapshot to %v with args: %s", rf.me, rf.currentTerm, serverId, args.String())
 	reply, err := rf.sendAppendSnapshots(serverId, args)
 	if err != nil {
+		DLog("[%v]: term %v | send snapshot to %v failed! %v", rf.me, rf.currentTerm, serverId, err.Error())
 		return
 	}
+
+	DLog("[%v]: term %v | send snapshot to %v with reply: %s", rf.me, rf.currentTerm, serverId, reply.String())
 
 	rf.mu.Lock()
 	defer rf.mu.Unlock()
@@ -97,6 +101,7 @@ func (rf *Raft) leaderSendSnapshots(serverId int, args *tinnraftpb.InstallSnapsh
 			if reply.Term > int64(rf.currentTerm) {
 				rf.setNewTerm(int(reply.Term))
 			} else {
+				DLog("set [%v] matchIDx: %d , nextIdx: %d", serverId, args.LastIncludedIndex, args.LastIncludedIndex+1)
 				rf.matchIndex[serverId] = int(args.LastIncludedIndex)
 				rf.nextIndex[serverId] = int(args.LastIncludedIndex) + 1
 			}
@@ -106,6 +111,7 @@ func (rf *Raft) leaderSendSnapshots(serverId int, args *tinnraftpb.InstallSnapsh
 }
 
 func (rf *Raft) leaderSendEntries(serverId int, args *tinnraftpb.AppendEntriesArgs) {
+
 	reply, err := rf.sendAppendEntries(serverId, args)
 	if err != nil {
 		return
@@ -125,7 +131,12 @@ func (rf *Raft) leaderSendEntries(serverId int, args *tinnraftpb.AppendEntriesAr
 			next := match + 1
 			rf.nextIndex[serverId] = max(rf.nextIndex[serverId], next)
 			rf.matchIndex[serverId] = max(rf.matchIndex[serverId], match)
-			DLog("[%v]: append entries to %v success, next %v match %v\n", rf.me, serverId, rf.nextIndex[serverId], rf.matchIndex[serverId])
+			if len(args.Entries) > 0 {
+				DLog("[%v]: append entries to %v success, next %v match %v\n", rf.me, serverId, rf.nextIndex[serverId], rf.matchIndex[serverId])
+			} else {
+				DLog("[%v]: term: %v | send heartbeats to %v success", rf.me, rf.currentTerm, serverId)
+			}
+
 		} else if reply.Conflict {
 			//追加失败，产生冲突
 			DLog("[%v]: confict from %v: %#v\n", rf.me, serverId, reply)
@@ -197,6 +208,7 @@ func (rf *Raft) HandleAppendEntries(args *tinnraftpb.AppendEntriesArgs, reply *t
 
 	reply.Success = false
 	reply.Term = int64(rf.currentTerm)
+	
 	if args.Term > int64(rf.currentTerm) {
 		rf.setNewTerm(int(args.Term))
 		return
@@ -214,12 +226,17 @@ func (rf *Raft) HandleAppendEntries(args *tinnraftpb.AppendEntriesArgs, reply *t
 		rf.state = Follower
 	}
 
+	if args.PrevLogIndex < rf.log.GetPersistFirstEntry().Index {
+		return
+	}
+
 	//PrevLogIndex发生冲突
 	if rf.log.GetPersistLastEntry().Index < args.PrevLogIndex {
 		reply.Conflict = true
 		reply.XTerm = -1
 		reply.XIndex = -1
 		reply.XLen = int64(rf.log.LogPersistLen())
+		DLog("[%v]: Conflict XTerm %v,XIndex %v,XLen %v", rf.me, reply.XTerm, reply.XIndex, reply.XLen)
 		return
 	}
 
@@ -237,6 +254,7 @@ func (rf *Raft) HandleAppendEntries(args *tinnraftpb.AppendEntriesArgs, reply *t
 		}
 		reply.XTerm = int64(xTerm)
 		reply.XLen = int64(rf.log.LogPersistLen())
+		DLog("[%v]: Conflict XTerm %v,XIndex %v,XLen %v", rf.me, reply.XTerm, reply.XIndex, reply.XLen)
 		return
 	}
 
@@ -256,6 +274,7 @@ func (rf *Raft) HandleAppendEntries(args *tinnraftpb.AppendEntriesArgs, reply *t
 			for _, newEntry := range args.Entries[idx:] {
 				rf.log.PersistAppend(newEntry)
 			}
+			DLog("[%v]: append entries from leader: [%v]", rf.me, args.Entries[idx:])
 			rf.persist()
 			break
 		}

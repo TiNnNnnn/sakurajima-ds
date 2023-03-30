@@ -26,8 +26,10 @@ import (
 func (rf *Raft) candidateRequestVote(serverId int, args *tinnraftpb.RequestVoteArgs, voteCounter *int, becomeLeader *sync.Once) {
 	//发起rpc投票并接受结果
 	reply, err := rf.sendRequestVote(serverId, args)
+	DLog("[%v]: term %v | send request vote to %v ", rf.me, rf.currentTerm, serverId)
 	if err != nil {
-		DLog("[%v]: send request vote to %d failed %v", rf.me, serverId, err.Error())
+		DLog("[%v]: term %v | send request vote to %d failed! %v", rf.me, rf.currentTerm, serverId, err.Error())
+		return
 	}
 	rf.mu.Lock()
 	defer rf.mu.Unlock()
@@ -35,9 +37,6 @@ func (rf *Raft) candidateRequestVote(serverId int, args *tinnraftpb.RequestVoteA
 	//发现fllower的term比自己大
 	if reply.Term > args.Term {
 		rf.setNewTerm(int(reply.Term))
-		rf.votedFor = -1
-		rf.state = Follower
-		rf.persist()
 		return
 	}
 
@@ -52,11 +51,12 @@ func (rf *Raft) candidateRequestVote(serverId int, args *tinnraftpb.RequestVoteA
 	}
 
 	//选票增加
+	DLog("[%v]: recieve one vote from [%v]", rf.me, serverId)
 	*voteCounter++
 
 	//已经获得超过半数的选票
 	if *voteCounter > len(rf.peers)/2 && rf.currentTerm == int(args.Term) && rf.state == Candidate {
-		DLog("[%d]: recieve the most vote in term %d, election over\n", rf.me, rf.currentTerm)
+		DLog("[%d]: term %v | recieve the most votes, election over\n", rf.me, rf.currentTerm)
 		becomeLeader.Do(func() {
 			rf.state = Leader
 			LastLogIndex := rf.log.GetPersistLastEntry().Index
@@ -80,7 +80,7 @@ func (rf *Raft) HandleRequestVote(args *tinnraftpb.RequestVoteArgs, reply *tinnr
 		rf.setNewTerm(int(args.Term))
 	}
 
-	//发现候选人的term比自己小
+	//发现候选人的term比自己小，拒绝投票
 	if int(args.Term) < rf.currentTerm {
 		reply.Term = int64(rf.currentTerm)
 		reply.VoteGranted = false
@@ -98,6 +98,7 @@ func (rf *Raft) HandleRequestVote(args *tinnraftpb.RequestVoteArgs, reply *tinnr
 		//持久化
 		rf.persist()
 		rf.resetElectionTimer()
+		DLog("[%v]: term %v | vote for %v", rf.me, rf.currentTerm, rf.votedFor)
 	} else {
 		reply.VoteGranted = false
 	}
@@ -105,6 +106,5 @@ func (rf *Raft) HandleRequestVote(args *tinnraftpb.RequestVoteArgs, reply *tinnr
 }
 
 func (rf *Raft) sendRequestVote(server int, args *tinnraftpb.RequestVoteArgs) (*tinnraftpb.RequestVoteReply, error) {
-	//ok := rf.peers[server].Call("Raft.RequestVote", args, reply)
 	return (*rf.peers[server].raftServiceCli).RequestVote(context.Background(), args)
 }
