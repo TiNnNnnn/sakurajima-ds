@@ -1,7 +1,9 @@
 package tinnraft
 
 import (
+	_"fmt"
 	"log"
+	_"runtime"
 	_ "time"
 )
 
@@ -11,6 +13,7 @@ const Debug = true
 func DLog(format string, a ...interface{}) (n int, err error) {
 	if Debug {
 		log.Printf(format, a...)
+		// 获取当前函数的文件名和行号
 	}
 	return
 }

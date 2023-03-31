@@ -31,9 +31,11 @@ import (
 
 func (rf *Raft) appendEntries(isHeartbeat bool) {
 	for _, peer := range rf.peers {
+		//rf.mu.Lock()
 		if int(peer.id) == rf.me {
 			//防止Leader节点无意义的选举发送
 			rf.resetElectionTimer()
+			//rf.mu.Unlock()
 			continue
 		}
 
@@ -52,18 +54,12 @@ func (rf *Raft) appendEntries(isHeartbeat bool) {
 				LastIncludeTerm:   int64(firstLog.Term),
 				Data:              rf.ReadSnapshot(),
 			}
+			//rf.mu.Unlock()
 			go rf.leaderSendSnapshots(int(peer.id), snapShotArgs)
 
 		} else {
 			lastLog := rf.log.GetPersistLastEntry()
 			if int(lastLog.Index) >= rf.nextIndex[peer.id] || isHeartbeat {
-				// nextsend_index := rf.nextIndex[peer.id]
-				// if nextsend_index <= 0 {
-				// 	nextsend_index = 1
-				// }
-				// if int(lastLog.Index)+1 < nextsend_index {
-				// 	nextsend_index = int(lastLog.Index)
-				// }
 				firstLogIndex := rf.log.GetPersistFirstEntry().Index
 				entires := make([]*tinnraftpb.Entry, len(rf.log.TruncatePersistLog(int64(prevLogIndex)+1-firstLogIndex)))
 				copy(entires, rf.log.TruncatePersistLog(int64(prevLogIndex)+1-firstLogIndex))
@@ -75,9 +71,12 @@ func (rf *Raft) appendEntries(isHeartbeat bool) {
 					Entries:      entires,
 					LeaderCommit: int64(rf.commitIndex),
 				}
+				//rf.mu.Unlock()
 				//copy(args.Entries, rf.log.slice2(nextsend_index))
 				go rf.leaderSendEntries(int(peer.id), &args)
 
+			} else {
+				//rf.mu.Unlock()
 			}
 		}
 	}
@@ -121,7 +120,10 @@ func (rf *Raft) leaderSendEntries(serverId int, args *tinnraftpb.AppendEntriesAr
 	defer rf.mu.Unlock()
 
 	if int(reply.Term) > rf.currentTerm {
-		rf.setNewTerm(int(reply.Term))
+		rf.ChangeRaftState(Follower)
+		rf.currentTerm = int(reply.Term)
+		rf.votedFor = -1
+		rf.persist()
 		return
 	}
 	if rf.state == Leader && int(args.Term) == rf.currentTerm {
@@ -136,7 +138,6 @@ func (rf *Raft) leaderSendEntries(serverId int, args *tinnraftpb.AppendEntriesAr
 			} else {
 				DLog("[%v]: term: %v | send heartbeats to %v success", rf.me, rf.currentTerm, serverId)
 			}
-
 		} else if reply.Conflict {
 			//追加失败，产生冲突
 			DLog("[%v]: confict from %v: %#v\n", rf.me, serverId, reply)
@@ -208,23 +209,26 @@ func (rf *Raft) HandleAppendEntries(args *tinnraftpb.AppendEntriesArgs, reply *t
 
 	reply.Success = false
 	reply.Term = int64(rf.currentTerm)
-	
+
+	//DLog("args.Term: %v  currentTerm:%v", args.Term, rf.currentTerm)
 	if args.Term > int64(rf.currentTerm) {
-		rf.setNewTerm(int(args.Term))
-		return
+		rf.currentTerm = int(args.Term)
+		rf.votedFor = -1
 	}
 	//Leader的任期小于follower的任期，直接结束
 	if args.Term < int64(rf.currentTerm) {
 		return
 	}
 
-	rf.leaderId = int(args.LeaderId)
-	rf.resetElectionTimer()
 	//Candidater在选举中收到了来自其他Leader的心跳，且任期更大
 	//说明选举失败，变回Follower
 	if rf.state == Candidate {
-		rf.state = Follower
+		DLog("[%v] term %v | election fail,become to follower from candidate", rf.me, rf.currentTerm)
 	}
+
+	rf.ChangeRaftState(Follower)
+	rf.leaderId = int(args.LeaderId)
+	rf.resetElectionTimer()
 
 	if args.PrevLogIndex < rf.log.GetPersistFirstEntry().Index {
 		return
@@ -256,6 +260,12 @@ func (rf *Raft) HandleAppendEntries(args *tinnraftpb.AppendEntriesArgs, reply *t
 		reply.XLen = int64(rf.log.LogPersistLen())
 		DLog("[%v]: Conflict XTerm %v,XIndex %v,XLen %v", rf.me, reply.XTerm, reply.XIndex, reply.XLen)
 		return
+	}
+
+	if len(args.Entries) > 0 {
+		DLog("[%v]: term %v | recive the appendentries req from [%v]", rf.me, rf.currentTerm, args.LeaderId)
+	} else {
+		DLog("[%v]: term %v | recive the heartbeat from [%v]", rf.me, rf.currentTerm, args.LeaderId)
 	}
 
 	for idx, entry := range args.Entries {

@@ -1,6 +1,7 @@
 package tinnraft
 
 import (
+	"fmt"
 	"sakurajima-ds/storage_engine"
 	"sakurajima-ds/tinnraftpb"
 	"sync"
@@ -25,8 +26,8 @@ type Raft struct {
 
 	state RaftState //raft状态机
 	//appendEntryCh chan *tinnraftpb.Entry
-	heartBeat    time.Duration //心跳间隔时间
-	electionTime time.Time     //选举超时时间
+	heartBeatTimer *time.Timer //心跳间隔时间
+	electionTimer  *time.Timer //选举超时时间
 
 	//通用持久化状态（所有server）
 	currentTerm int  //当前任期
@@ -62,7 +63,10 @@ func MakeRaft(peers []*ClientEnd, me int, dbEngine storage_engine.KvStorage,
 	rf.currentTerm = 0
 	rf.votedFor = -1
 	//rf.heartBeat = 50 * time.Millisecond
-	rf.heartBeat = 1000 * time.Millisecond
+	//rf.heartBeat = 2000 * time.Millisecond
+	rf.heartBeatTimer = time.NewTimer(time.Millisecond * time.Duration(2000))
+	rf.electionTimer = time.NewTimer(time.Microsecond * time.Duration(MakeAnRandomElectionTimeout()))
+
 	rf.resetElectionTimer()
 
 	//日志初始化,加入一个空日志
@@ -81,7 +85,13 @@ func MakeRaft(peers []*ClientEnd, me int, dbEngine storage_engine.KvStorage,
 	// initialize from state persisted before a crash
 	rf.readPersist()
 
-	DLog("[%v]: the last log idx is %v", rf.me, rf.log.GetPersistLastEntry().Index)
+	fmt.Println("-----------------------------------")
+	for _, peer := range peers {
+		DLog("peer addr %s id %d", peer.addr, peer.id)
+	}
+	fmt.Println("-----------------------------------")
+
+	DLog("[%v]: term %v | the last log idx is %v", rf.me, rf.currentTerm, rf.log.GetPersistLastEntry().Index)
 
 	//开启一个协程进行选举
 	go rf.ticker()
@@ -163,16 +173,33 @@ func (rf *Raft) readPersist() {
 
 // 选举与心跳触发器
 func (rf *Raft) ticker() {
+	// for !rf.IsKilled() {
+	// 	time.Sleep(rf.heartBeat)
+	// 	rf.mu.Lock()
+	// 	if rf.state == Leader {
+	// 		rf.appendEntries(true)
+	// 	}
+	// 	if time.Now().After(rf.electionTime) {
+	// 		rf.leaderElection()
+	// 	}
+	// 	rf.mu.Unlock()
+	// }
+
 	for !rf.IsKilled() {
-		time.Sleep(rf.heartBeat)
-		rf.mu.Lock()
-		if rf.state == Leader {
-			rf.appendEntries(true)
+		select {
+		case <-rf.electionTimer.C:
+			{
+				rf.leaderElection()
+			}
+		case <-rf.heartBeatTimer.C:
+			{
+				if rf.state == Leader {
+					//DLog("hahahhahahah")
+					rf.appendEntries(true)
+					rf.resetHeartTimer()
+				}
+			}
 		}
-		if time.Now().After(rf.electionTime) {
-			rf.leaderElection()
-		}
-		rf.mu.Unlock()
 	}
 }
 
@@ -234,10 +261,11 @@ func (rf *Raft) ChangeRaftState(state RaftState) {
 		return
 	}
 	rf.state = state
-	DLog("change state to %v", state)
+	DLog("[%v] term %v | change state to %v", rf.me, rf.currentTerm, state)
 
 	switch state {
 	case Follower:
+		rf.heartBeatTimer.Stop()
 		rf.resetElectionTimer()
 	case Candidate:
 	case Leader:
@@ -245,8 +273,9 @@ func (rf *Raft) ChangeRaftState(state RaftState) {
 		rf.leaderId = rf.me
 		for i := 0; i < len(rf.peers); i++ {
 			rf.matchIndex[i] = 0
-			rf.nextIndex[i] = int(lastLog.Index)
+			rf.nextIndex[i] = int(lastLog.Index) + 1
 		}
-		rf.resetElectionTimer()
+		rf.electionTimer.Stop()
+		rf.resetHeartTimer()
 	}
 }

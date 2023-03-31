@@ -25,8 +25,8 @@ import (
 // 候选人发起投票请求
 func (rf *Raft) candidateRequestVote(serverId int, args *tinnraftpb.RequestVoteArgs, voteCounter *int, becomeLeader *sync.Once) {
 	//发起rpc投票并接受结果
-	reply, err := rf.sendRequestVote(serverId, args)
 	DLog("[%v]: term %v | send request vote to %v ", rf.me, rf.currentTerm, serverId)
+	reply, err := rf.sendRequestVote(serverId, args)
 	if err != nil {
 		DLog("[%v]: term %v | send request vote to %d failed! %v", rf.me, rf.currentTerm, serverId, err.Error())
 		return
@@ -36,7 +36,11 @@ func (rf *Raft) candidateRequestVote(serverId int, args *tinnraftpb.RequestVoteA
 
 	//发现fllower的term比自己大
 	if reply.Term > args.Term {
+		rf.ChangeRaftState(Follower)
 		rf.setNewTerm(int(reply.Term))
+		rf.currentTerm = int(reply.Term)
+		rf.votedFor = -1
+		rf.persist()
 		return
 	}
 
@@ -56,14 +60,9 @@ func (rf *Raft) candidateRequestVote(serverId int, args *tinnraftpb.RequestVoteA
 
 	//已经获得超过半数的选票
 	if *voteCounter > len(rf.peers)/2 && rf.currentTerm == int(args.Term) && rf.state == Candidate {
-		DLog("[%d]: term %v | recieve the most votes, election over\n", rf.me, rf.currentTerm)
+		DLog("[%d]: term %v | recieve the most votes, win the election,become the leader\n", rf.me, rf.currentTerm)
 		becomeLeader.Do(func() {
-			rf.state = Leader
-			LastLogIndex := rf.log.GetPersistLastEntry().Index
-			for i := range rf.peers {
-				rf.nextIndex[i] = int(LastLogIndex) + 1
-				rf.matchIndex[i] = 0
-			}
+			rf.ChangeRaftState(Leader)
 			//发送心跳给其他server
 			rf.appendEntries(true)
 		})
@@ -77,17 +76,23 @@ func (rf *Raft) HandleRequestVote(args *tinnraftpb.RequestVoteArgs, reply *tinnr
 
 	//发现候选人的term比自己大
 	if int(args.Term) > rf.currentTerm {
-		rf.setNewTerm(int(args.Term))
+		rf.ChangeRaftState(Follower)
+		rf.currentTerm = int(args.Term)
+		rf.votedFor = -1
 	}
 
 	//发现候选人的term比自己小，拒绝投票
-	if int(args.Term) < rf.currentTerm {
+	if int(args.Term) < rf.currentTerm || 
+	(args.Term == int64(rf.currentTerm) && rf.votedFor != -1 && rf.votedFor != int(args.CandidateId)){
+		DLog("[%v]: term %v | refuse vote for [%v]", rf.me, rf.currentTerm, rf.votedFor)
 		reply.Term = int64(rf.currentTerm)
 		reply.VoteGranted = false
 		return
 	}
 
 	follow_lastLog := rf.log.GetPersistLastEntry()
+
+	//判断候选者日志是否是最新的
 	upToDate := uint64(args.LastLogTerm) > follow_lastLog.Term ||
 		(uint64(args.LastLogTerm) == follow_lastLog.Term &&
 			args.LastLogIndex >= follow_lastLog.Index)
@@ -98,9 +103,10 @@ func (rf *Raft) HandleRequestVote(args *tinnraftpb.RequestVoteArgs, reply *tinnr
 		//持久化
 		rf.persist()
 		rf.resetElectionTimer()
-		DLog("[%v]: term %v | vote for %v", rf.me, rf.currentTerm, rf.votedFor)
+		DLog("[%v]: term %v | vote for [%v]", rf.me, rf.currentTerm, rf.votedFor)
 	} else {
 		reply.VoteGranted = false
+		DLog("[%v]: term %v | refuse vote for [%v]", rf.me, rf.currentTerm, rf.votedFor)
 	}
 	reply.Term = int64(rf.currentTerm)
 }
