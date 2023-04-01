@@ -25,6 +25,7 @@ type RaftServiceClient interface {
 	RequestVote(ctx context.Context, in *RequestVoteArgs, opts ...grpc.CallOption) (*RequestVoteReply, error)
 	AppendEntries(ctx context.Context, in *AppendEntriesArgs, opts ...grpc.CallOption) (*AppendEntriesReply, error)
 	Snapshot(ctx context.Context, in *InstallSnapshotArgs, opts ...grpc.CallOption) (*InstallSnapshotReply, error)
+	DoCommand(ctx context.Context, in *CommandArgs, opts ...grpc.CallOption) (*CommandReply, error)
 }
 
 type raftServiceClient struct {
@@ -62,6 +63,15 @@ func (c *raftServiceClient) Snapshot(ctx context.Context, in *InstallSnapshotArg
 	return out, nil
 }
 
+func (c *raftServiceClient) DoCommand(ctx context.Context, in *CommandArgs, opts ...grpc.CallOption) (*CommandReply, error) {
+	out := new(CommandReply)
+	err := c.cc.Invoke(ctx, "/pbs.RaftService/DoCommand", in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 // RaftServiceServer is the server API for RaftService service.
 // All implementations must embed UnimplementedRaftServiceServer
 // for forward compatibility
@@ -69,6 +79,7 @@ type RaftServiceServer interface {
 	RequestVote(context.Context, *RequestVoteArgs) (*RequestVoteReply, error)
 	AppendEntries(context.Context, *AppendEntriesArgs) (*AppendEntriesReply, error)
 	Snapshot(context.Context, *InstallSnapshotArgs) (*InstallSnapshotReply, error)
+	DoCommand(context.Context, *CommandArgs) (*CommandReply, error)
 	mustEmbedUnimplementedRaftServiceServer()
 }
 
@@ -84,6 +95,9 @@ func (UnimplementedRaftServiceServer) AppendEntries(context.Context, *AppendEntr
 }
 func (UnimplementedRaftServiceServer) Snapshot(context.Context, *InstallSnapshotArgs) (*InstallSnapshotReply, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method Snapshot not implemented")
+}
+func (UnimplementedRaftServiceServer) DoCommand(context.Context, *CommandArgs) (*CommandReply, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method DoCommand not implemented")
 }
 func (UnimplementedRaftServiceServer) mustEmbedUnimplementedRaftServiceServer() {}
 
@@ -152,6 +166,24 @@ func _RaftService_Snapshot_Handler(srv interface{}, ctx context.Context, dec fun
 	return interceptor(ctx, in, info, handler)
 }
 
+func _RaftService_DoCommand_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(CommandArgs)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(RaftServiceServer).DoCommand(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: "/pbs.RaftService/DoCommand",
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(RaftServiceServer).DoCommand(ctx, req.(*CommandArgs))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 // RaftService_ServiceDesc is the grpc.ServiceDesc for RaftService service.
 // It's only intended for direct use with grpc.RegisterService,
 // and not to be introspected or modified (even as a copy)
@@ -170,6 +202,10 @@ var RaftService_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "Snapshot",
 			Handler:    _RaftService_Snapshot_Handler,
+		},
+		{
+			MethodName: "DoCommand",
+			Handler:    _RaftService_DoCommand_Handler,
 		},
 	},
 	Streams:  []grpc.StreamDesc{},

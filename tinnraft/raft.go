@@ -62,8 +62,6 @@ func MakeRaft(peers []*ClientEnd, me int, dbEngine storage_engine.KvStorage,
 	rf.state = Follower
 	rf.currentTerm = 0
 	rf.votedFor = -1
-	//rf.heartBeat = 50 * time.Millisecond
-	//rf.heartBeat = 2000 * time.Millisecond
 	rf.heartBeatTimer = time.NewTimer(time.Millisecond * time.Duration(2000))
 	rf.electionTimer = time.NewTimer(time.Microsecond * time.Duration(MakeAnRandomElectionTimeout()))
 
