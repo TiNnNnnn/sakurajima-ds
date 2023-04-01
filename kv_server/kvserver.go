@@ -31,6 +31,8 @@ var PeersMap = map[int]string{
 	2: ":10012",
 }
 
+const ClientTimeOut = 1 * time.Second
+
 type OperationContext struct {
 	MaxAppliedCommandId int64
 	LastResponse        tinnraftpb.CommandReply
@@ -227,7 +229,7 @@ func (kvs *KvServer) DoCommand(ctx context.Context, args *tinnraftpb.CommandArgs
 		select {
 		case res := <-ch:
 			reply.Value = res.Value
-		case <-time.After(100):
+		case <-time.After(ClientTimeOut):
 			reply.ErrCode = common.ErrCodeExecTimeout
 			reply.Value = "timeout"
 		}

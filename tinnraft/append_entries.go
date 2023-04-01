@@ -31,11 +31,10 @@ import (
 
 func (rf *Raft) appendEntries(isHeartbeat bool) {
 	for _, peer := range rf.peers {
-		//rf.mu.Lock()
+
 		if int(peer.id) == rf.me {
 			//防止Leader节点无意义的选举发送
 			rf.resetElectionTimer()
-			//rf.mu.Unlock()
 			continue
 		}
 
@@ -71,12 +70,8 @@ func (rf *Raft) appendEntries(isHeartbeat bool) {
 					Entries:      entires,
 					LeaderCommit: int64(rf.commitIndex),
 				}
-				//rf.mu.Unlock()
-				//copy(args.Entries, rf.log.slice2(nextsend_index))
 				go rf.leaderSendEntries(int(peer.id), &args)
 
-			} else {
-				//rf.mu.Unlock()
 			}
 		}
 	}
@@ -98,9 +93,12 @@ func (rf *Raft) leaderSendSnapshots(serverId int, args *tinnraftpb.InstallSnapsh
 	if reply != nil {
 		if rf.state == Leader && rf.currentTerm == int(reply.Term) {
 			if reply.Term > int64(rf.currentTerm) {
-				rf.setNewTerm(int(reply.Term))
+				rf.ChangeRaftState(Follower)
+				rf.currentTerm = int(reply.Term)
+				rf.votedFor = -1
+				rf.persist()
 			} else {
-				DLog("set [%v] matchIDx: %d , nextIdx: %d", serverId, args.LastIncludedIndex, args.LastIncludedIndex+1)
+				DLog("set [%v] matchIdx: %d , nextIdx: %d", serverId, args.LastIncludedIndex, args.LastIncludedIndex+1)
 				rf.matchIndex[serverId] = int(args.LastIncludedIndex)
 				rf.nextIndex[serverId] = int(args.LastIncludedIndex) + 1
 			}
@@ -110,9 +108,10 @@ func (rf *Raft) leaderSendSnapshots(serverId int, args *tinnraftpb.InstallSnapsh
 }
 
 func (rf *Raft) leaderSendEntries(serverId int, args *tinnraftpb.AppendEntriesArgs) {
-
+	//DLog("[%v]: term %v | send appendentires to %v with args: %s", rf.me, rf.currentTerm, serverId, args.String())
 	reply, err := rf.sendAppendEntries(serverId, args)
 	if err != nil {
+		//DLog("[%v]: term %v | send appendentires to %v failed! %v", rf.me, rf.currentTerm, serverId, err.Error())
 		return
 	}
 
@@ -181,6 +180,7 @@ func (rf *Raft) leaderCommitRule() {
 				counter++
 			}
 			if counter > len(rf.peers)/2 {
+				DLog("[%v]: term %v | advance commit idx %d ", rf.me, rf.currentTerm, k)
 				rf.commitIndex = k
 				rf.apply()
 				break

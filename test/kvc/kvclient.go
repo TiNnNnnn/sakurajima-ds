@@ -11,7 +11,7 @@ import (
 	"sakurajima-ds/tinnraft"
 	"sakurajima-ds/tinnraftpb"
 	"strconv"
-	"time"
+	_"time"
 )
 
 type KvClient struct {
@@ -96,12 +96,12 @@ func main() {
 		vals[i] = randV
 	}
 
-	startTs := time.Now()
-	for i := 0; i < count; i++ {
-		kvclient.Put(keys[i], vals[i])
-	}
-	elapsed := time.Since(startTs).Seconds()
-	fmt.Printf("total cost %f s\n", elapsed)
+	// startTs := time.Now()
+	// for i := 0; i < count; i++ {
+	// 	kvclient.Put(keys[i], vals[i])
+	// }
+	// elapsed := time.Since(startTs).Seconds()
+	// fmt.Printf("total cost %f s\n", elapsed)
 
 	switch op {
 	case "get":

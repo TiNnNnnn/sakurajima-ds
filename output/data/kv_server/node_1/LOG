@@ -1,16 +1,6 @@
 =============== Apr 1, 2023 (CST) ===============
-20:38:57.990330 log@legend F·NumFile S·FileSize N·Entry C·BadEntry B·BadBlock Ke·KeyError D·DroppedEntry L·Level Q·SeqNum T·TimeElapsed
-20:38:57.996862 db@open opening
-20:38:57.997349 version@stat F·[] S·0B[] Sc·[]
-20:38:58.000782 db@janitor F·2 G·0
-20:38:58.000846 db@open done T·3.958187ms
-=============== Apr 1, 2023 (CST) ===============
-20:47:16.439788 log@legend F·NumFile S·FileSize N·Entry C·BadEntry B·BadBlock Ke·KeyError D·DroppedEntry L·Level Q·SeqNum T·TimeElapsed
-20:47:16.439982 version@stat F·[] S·0B[] Sc·[]
-20:47:16.439992 db@open opening
-20:47:16.440026 journal@recovery F·1
-20:47:16.440814 journal@recovery recovering @1
-20:47:16.447425 memdb@flush created L0@2 N·27 S·586B "\x11\x11\x19..\x00\x00\x00,v2":"\x19I,v3"
-20:47:16.447691 version@stat F·[1] S·586B[586B] Sc·[0.25]
-20:47:16.458057 db@janitor F·3 G·0
-20:47:16.458139 db@open done T·18.122115ms
+22:39:03.782056 log@legend F·NumFile S·FileSize N·Entry C·BadEntry B·BadBlock Ke·KeyError D·DroppedEntry L·Level Q·SeqNum T·TimeElapsed
+22:39:03.789619 db@open opening
+22:39:03.790200 version@stat F·[] S·0B[] Sc·[]
+22:39:03.793854 db@janitor F·2 G·0
+22:39:03.793919 db@open done T·4.255565ms

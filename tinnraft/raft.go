@@ -203,39 +203,46 @@ func (rf *Raft) ticker() {
 
 // 唤醒 更新LastAppId协程
 func (rf *Raft) apply() {
-	rf.applyCond.Broadcast()
+	rf.applyCond.Signal()
 }
 
 // 更新LastAppId
 func (rf *Raft) applier() {
 	for !rf.IsKilled() {
 		rf.mu.Lock()
+		for rf.lastApplied >= rf.commitIndex {
+			DLog("[%v]: waiting for applier...", rf.me)
+			//阻塞等待commitindex发生变化
+			rf.applyCond.Wait()
+		}
 
 		if rf.commitIndex > rf.lastApplied && rf.log.GetPersistLastEntry().Index > int64(rf.lastApplied) {
 
-			firstIndex := rf.log.FirstLogIdx()
+			firstIndex := rf.log.GetPersistFirstEntry().Index
 			commitIndex := rf.commitIndex
 			lastApplied := rf.lastApplied
 			entries := make([]*tinnraftpb.Entry, commitIndex-lastApplied)
-			copy(entries, rf.log.GetPersistInterLog(int64(lastApplied)+1-int64(firstIndex), int64(commitIndex)-int64(firstIndex)))
+			copy(entries, rf.log.GetPersistInterLog(int64(lastApplied)+1-int64(firstIndex), int64(commitIndex)+1-int64(firstIndex)))
+			//DLog("[%v]: firstIndex = %v", rf.me, firstIndex)
+			DLog("[%v]: term %v | applied entries from %d to %d ", rf.me, rf.currentTerm, rf.lastApplied, commitIndex)
 
 			rf.mu.Unlock()
+
+			//DLog("entries len: %d", len(entries))
 			for _, entry := range entries {
-				applyMsg := tinnraftpb.ApplyMsg{
+
+				//向applyCh写入数据，提醒应用层将操作应用到状态机
+				rf.applyCh <- &tinnraftpb.ApplyMsg{
 					CommandValid: true,
 					Command:      entry.Data,
 					CommandIndex: int64(entry.Index),
 					CommandTerm:  int64(entry.Term),
 				}
-				//向applyCh写入数据，提醒应用层将操作应用到状态机
-				rf.applyCh <- &applyMsg
+
 			}
 			rf.mu.Lock()
 			rf.lastApplied = max(rf.lastApplied, commitIndex)
 			rf.mu.Unlock()
-		} else {
-			//阻塞等待commitindex发生变化
-			rf.applyCond.Wait()
 		}
 	}
 }
