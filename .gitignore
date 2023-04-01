@@ -16,4 +16,4 @@ test.txt
 test*
 *.log
 
-/output/
+/output
