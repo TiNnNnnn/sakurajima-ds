@@ -4,3 +4,40 @@
 22:39:05.489422 version@stat F·[] S·0B[] Sc·[]
 22:39:05.492971 db@janitor F·2 G·0
 22:39:05.493035 db@open done T·4.150305ms
+=============== Apr 4, 2023 (CST) ===============
+14:06:06.044767 log@legend F·NumFile S·FileSize N·Entry C·BadEntry B·BadBlock Ke·KeyError D·DroppedEntry L·Level Q·SeqNum T·TimeElapsed
+14:06:06.048578 version@stat F·[] S·0B[] Sc·[]
+14:06:06.048593 db@open opening
+14:06:06.048637 journal@recovery F·1
+14:06:06.049023 journal@recovery recovering @1
+14:06:06.053521 memdb@flush created L0@2 N·7 S·406B "\x11\x11\x19..\x00\x00\x00,v2":"\x19I,v3"
+14:06:06.053901 version@stat F·[1] S·406B[406B] Sc·[0.25]
+14:06:06.064047 db@janitor F·3 G·0
+14:06:06.064108 db@open done T·15.505158ms
+=============== Apr 4, 2023 (CST) ===============
+14:06:41.904811 log@legend F·NumFile S·FileSize N·Entry C·BadEntry B·BadBlock Ke·KeyError D·DroppedEntry L·Level Q·SeqNum T·TimeElapsed
+14:06:41.905040 version@stat F·[1] S·406B[406B] Sc·[0.25]
+14:06:41.905053 db@open opening
+14:06:41.905099 journal@recovery F·1
+14:06:41.905759 journal@recovery recovering @3
+14:06:41.911340 memdb@flush created L0@5 N·2 S·191B "\x11\x11\x19..\x00\x00\x00,v10":"\x11\x11\x19..\x00\x00\x00,v9"
+14:06:41.911517 version@stat F·[2] S·597B[597B] Sc·[0.50]
+14:06:41.921504 db@janitor F·4 G·0
+14:06:41.921541 db@open done T·16.48058ms
+=============== Apr 4, 2023 (CST) ===============
+14:07:04.879230 log@legend F·NumFile S·FileSize N·Entry C·BadEntry B·BadBlock Ke·KeyError D·DroppedEntry L·Level Q·SeqNum T·TimeElapsed
+14:07:04.879439 version@stat F·[2] S·597B[597B] Sc·[0.50]
+14:07:04.879451 db@open opening
+14:07:04.879523 journal@recovery F·1
+14:07:04.880181 journal@recovery recovering @6
+14:07:04.886569 memdb@flush created L0@8 N·3 S·264B "\x11\x11\x19..\x00\x00\x00,v13":"\x19I,v14"
+14:07:04.886966 version@stat F·[3] S·861B[861B] Sc·[0.75]
+14:07:04.899203 db@janitor F·5 G·0
+14:07:04.899266 db@open done T·19.790937ms
+14:07:35.381896 table@compaction L0·3 -> L1·0 S·861B Q·18
+14:07:35.386757 table@build created L1@11 N·4 S·389B "\x11\x11\x19..\x00\x00\x00,v13":"\x19I,v14"
+14:07:35.386820 version@stat F·[0 1] S·389B[0B 389B] Sc·[0.00 0.00]
+14:07:35.390292 table@compaction committed F-2 S-472B Ke·0 D·8 T·8.350714ms
+14:07:35.390416 table@remove removed @8
+14:07:35.390461 table@remove removed @5
+14:07:35.390497 table@remove removed @2
