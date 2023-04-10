@@ -100,12 +100,74 @@ message CommandReply{
 	int64 ErrCode = 3;
 }
 
+/*
+配置服务器相关操作
+1 Join: 将一个新的分组服务器加入集群配置
+2 Leave: 将一个分组服务器从集群配置中删除
+3 Move: 将某个桶分配给相应的分组
+4 Query: 查询配置信息
+*/
+enum ConfigOpType{
+	Join = 0;
+	Leave = 1;
+	Move = 2;
+	Query = 3;
+}
+
+message ConfigArgs{
+	map<int64,string> Servers = 1;
+	repeated int64 groupIds = 2;
+	int64 BucketId = 3;
+	int64 GroupId = 4;
+	int64 ConfigVersion = 5;
+	ConfigOpType OpType = 6;
+	int64 ClientId = 7;
+	int64 CommandId = 8;
+}
+
+message ServerConfig{
+	int64 ConfigVersion = 1;    //配置信息版本
+	repeated int64 Buckets = 2; //bucket数组
+	map<int64,string> groups = 3; // 集群分组信息
+}
+
+message ConfigReply{
+	string ErrMsg = 1;
+	ServerConfig Config = 2;
+	int64 LeaderId = 3;
+	int64 err_code = 4;
+}
+
+// 服务器分组相关操作
+enum BucketOpType{
+	GetData = 0;
+	DelData = 1;
+	AddData = 2;
+}
+
+message BucketOpArgs{
+	int64 ConfigVersion = 1;
+	repeated int64 BucketIds = 2;
+	BucketOpType BucketOpType = 3;
+	int64 GroupId = 4;
+	bytes BucketsData = 5;
+}
+
+message BucketOpReply{
+	int64 ConfigVersion = 1;
+	bytes BucketData = 2;
+	string ErrMsg = 3;
+}
 
 service RaftService{
     rpc RequestVote (RequestVoteArgs) returns (RequestVoteReply){}
 	rpc AppendEntries(AppendEntriesArgs) returns (AppendEntriesReply){}
 	rpc Snapshot(InstallSnapshotArgs)returns(InstallSnapshotReply){}
+	
 	rpc DoCommand(CommandArgs)returns(CommandReply){}
+	
+	rpc DoConfig(ConfigArgs) returns (ConfigReply){}
+	rpc DoBucket(BucketOpArgs)returns (BucketOpReply){}
 }
 
 

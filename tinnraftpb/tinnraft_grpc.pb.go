@@ -26,6 +26,8 @@ type RaftServiceClient interface {
 	AppendEntries(ctx context.Context, in *AppendEntriesArgs, opts ...grpc.CallOption) (*AppendEntriesReply, error)
 	Snapshot(ctx context.Context, in *InstallSnapshotArgs, opts ...grpc.CallOption) (*InstallSnapshotReply, error)
 	DoCommand(ctx context.Context, in *CommandArgs, opts ...grpc.CallOption) (*CommandReply, error)
+	DoConfig(ctx context.Context, in *ConfigArgs, opts ...grpc.CallOption) (*ConfigReply, error)
+	DoBucket(ctx context.Context, in *BucketOpArgs, opts ...grpc.CallOption) (*BucketOpReply, error)
 }
 
 type raftServiceClient struct {
@@ -72,6 +74,24 @@ func (c *raftServiceClient) DoCommand(ctx context.Context, in *CommandArgs, opts
 	return out, nil
 }
 
+func (c *raftServiceClient) DoConfig(ctx context.Context, in *ConfigArgs, opts ...grpc.CallOption) (*ConfigReply, error) {
+	out := new(ConfigReply)
+	err := c.cc.Invoke(ctx, "/pbs.RaftService/DoConfig", in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *raftServiceClient) DoBucket(ctx context.Context, in *BucketOpArgs, opts ...grpc.CallOption) (*BucketOpReply, error) {
+	out := new(BucketOpReply)
+	err := c.cc.Invoke(ctx, "/pbs.RaftService/DoBucket", in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 // RaftServiceServer is the server API for RaftService service.
 // All implementations must embed UnimplementedRaftServiceServer
 // for forward compatibility
@@ -80,6 +100,8 @@ type RaftServiceServer interface {
 	AppendEntries(context.Context, *AppendEntriesArgs) (*AppendEntriesReply, error)
 	Snapshot(context.Context, *InstallSnapshotArgs) (*InstallSnapshotReply, error)
 	DoCommand(context.Context, *CommandArgs) (*CommandReply, error)
+	DoConfig(context.Context, *ConfigArgs) (*ConfigReply, error)
+	DoBucket(context.Context, *BucketOpArgs) (*BucketOpReply, error)
 	mustEmbedUnimplementedRaftServiceServer()
 }
 
@@ -98,6 +120,12 @@ func (UnimplementedRaftServiceServer) Snapshot(context.Context, *InstallSnapshot
 }
 func (UnimplementedRaftServiceServer) DoCommand(context.Context, *CommandArgs) (*CommandReply, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method DoCommand not implemented")
+}
+func (UnimplementedRaftServiceServer) DoConfig(context.Context, *ConfigArgs) (*ConfigReply, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method DoConfig not implemented")
+}
+func (UnimplementedRaftServiceServer) DoBucket(context.Context, *BucketOpArgs) (*BucketOpReply, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method DoBucket not implemented")
 }
 func (UnimplementedRaftServiceServer) mustEmbedUnimplementedRaftServiceServer() {}
 
@@ -184,6 +212,42 @@ func _RaftService_DoCommand_Handler(srv interface{}, ctx context.Context, dec fu
 	return interceptor(ctx, in, info, handler)
 }
 
+func _RaftService_DoConfig_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(ConfigArgs)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(RaftServiceServer).DoConfig(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: "/pbs.RaftService/DoConfig",
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(RaftServiceServer).DoConfig(ctx, req.(*ConfigArgs))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _RaftService_DoBucket_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(BucketOpArgs)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(RaftServiceServer).DoBucket(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: "/pbs.RaftService/DoBucket",
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(RaftServiceServer).DoBucket(ctx, req.(*BucketOpArgs))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 // RaftService_ServiceDesc is the grpc.ServiceDesc for RaftService service.
 // It's only intended for direct use with grpc.RegisterService,
 // and not to be introspected or modified (even as a copy)
@@ -206,6 +270,14 @@ var RaftService_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "DoCommand",
 			Handler:    _RaftService_DoCommand_Handler,
+		},
+		{
+			MethodName: "DoConfig",
+			Handler:    _RaftService_DoConfig_Handler,
+		},
+		{
+			MethodName: "DoBucket",
+			Handler:    _RaftService_DoBucket_Handler,
 		},
 	},
 	Streams:  []grpc.StreamDesc{},

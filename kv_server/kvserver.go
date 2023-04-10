@@ -49,9 +49,9 @@ type KvServer struct {
 
 	//lastOperations map[int64]OperationContext
 
-	notifyChans map[int]chan *tinnraftpb.CommandReply
+	notifyChans map[int]chan *tinnraftpb.CommandReply //从ApplingToStm协程中获取操作结果
 
-	stopApplyCh chan interface{}
+	stopApplyCh chan interface{} 
 
 	tinnraftpb.UnimplementedRaftServiceServer
 }
@@ -60,22 +60,29 @@ func (kvs *KvServer) GetTinnRaft() *tinnraft.Raft {
 	return kvs.tinnRf
 }
 
+// 初始化一个kvserver
 func MakeKvServer(serverId int) *KvServer {
 	clientEnds := []*tinnraft.ClientEnd{}
+
+	//创建三个rpc客户端,并添加到clientEnds数组
 	for id, addr := range DnsMap {
 		newClient := tinnraft.MakeClientEnd(uint64(id), addr)
 		clientEnds = append(clientEnds, newClient)
 	}
 
+	//创建levelDB存储引擎
 	logEngine, err := storage_engine.MakeLevelDBKvStorage("./data/kv_server" + "/node_" + strconv.Itoa(serverId))
 	if err != nil {
 		panic(err)
 	}
 
+	//创建管道，应用层监听raft提交的操作与数据信息(CommandArgs)
 	newApplyCh := make(chan *tinnraftpb.ApplyMsg)
 
+	//实例化raft模块
 	newRaft := tinnraft.MakeRaft(clientEnds, serverId, logEngine, newApplyCh)
 
+	//实例化kvserver
 	kvserver := &KvServer{
 		tinnRf:      newRaft,
 		applyCh:     newApplyCh,
@@ -147,15 +154,17 @@ func (kvs *KvServer) ReadNotifyChan(idx int) chan *tinnraftpb.CommandReply {
 	return kvs.notifyChans[idx]
 }
 
+// 将提交的数据应用到状态机
 func (kvs *KvServer) ApplingToStm(done <-chan interface{}) {
 	for !kvs.IsKilled() {
 		select {
-		case <-done:
+		case <-done: //退出select
 			return
-		case appliedMsg := <-kvs.applyCh:
+		case appliedMsg := <-kvs.applyCh: //applyCh监听并接受 raft提交的数据
 			if appliedMsg.CommandValid {
 				kvs.mu.Lock()
 				args := &tinnraftpb.CommandArgs{}
+				//将Command信息反序列化到结构体args中
 				if err := json.Unmarshal(appliedMsg.Command, args); err != nil {
 					kvs.mu.Unlock()
 					tinnraft.DLog("Umarshalal ComandArgs failed")
@@ -179,7 +188,7 @@ func (kvs *KvServer) ApplingToStm(done <-chan interface{}) {
 					kvs.stm.Append(args.Key, args.Value)
 				}
 
-				//构建队客户端的响应
+				//构建对客户端的响应
 				reply := &tinnraftpb.CommandReply{}
 				reply.Value = value
 
@@ -216,12 +225,14 @@ func (kvs *KvServer) DoCommand(ctx context.Context, args *tinnraftpb.CommandArgs
 		if err != nil {
 			return nil, err
 		}
+		//将json消息发给raft模块处理，且只有leader节点接受消息
 		idx, _, isLeader := kvs.tinnRf.Propose(argBytes)
 		if !isLeader {
 			reply.ErrCode = common.ErrCodeWrongLeader
 			return reply, nil
 		}
 
+		//获取idx对应的notifychan管道
 		kvs.mu.Lock()
 		ch := kvs.ReadNotifyChan(idx)
 		kvs.mu.Unlock()
