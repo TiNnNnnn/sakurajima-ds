@@ -13,3 +13,19 @@ type Config struct {
 	Buckets [common.BucketsNum]int
 	Groups  map[int][]string
 }
+
+func MakeDefaultConfig() Config {
+	return Config{
+		Groups: make(map[int][]string),
+	}
+}
+
+func CopyGroup(groups map[int][]string) map[int][]string {
+	newGroup := make(map[int][]string)
+	for groupId, addrs := range groups {
+		newAddrs := make([]string, len(addrs))
+		copy(newAddrs, addrs)
+		newGroup[groupId] = newAddrs
+	}
+	return newGroup
+}
