@@ -261,6 +261,12 @@ func (rf *Raft) CloseAllConn() {
 	}
 }
 
+func (rf *Raft) GetLeaderId() int64 {
+	rf.mu.Lock()
+	defer rf.mu.Unlock()
+	return int64(rf.leaderId)
+}
+
 func (rf *Raft) ChangeRaftState(state RaftState) {
 	if state == rf.state {
 		return

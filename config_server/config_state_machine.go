@@ -6,7 +6,6 @@ import (
 	"sakurajima-ds/storage_engine"
 	"sakurajima-ds/tinnraft"
 	"strconv"
-	"sync"
 )
 
 const CUR_VERSION_KEY = "CUR_VERISON_KEY"
@@ -19,7 +18,7 @@ type ConfigOp interface {
 }
 
 type ConfigStateMachine struct {
-	mu         sync.Mutex
+	//mu         sync.Mutex
 	engine     storage_engine.KvStorage
 	curVerison int
 }
@@ -68,7 +67,7 @@ func (stm *ConfigStateMachine) Join(groups map[int][]string) error {
 		lastConf.Buckets,
 		CopyGroup(lastConf.Groups),
 	}
-	
+
 	//更新Groups,向newConfig添加新的组别
 	for groupId, addrs := range groups {
 		_, ok := newConfig.Groups[groupId]
