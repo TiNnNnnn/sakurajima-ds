@@ -48,5 +48,3 @@ func MakeConfigServer(peerMaps map[int]string, serverId int) *ConfigServer {
 
 	return configServer
 }
-
-
