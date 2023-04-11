@@ -159,6 +159,18 @@ message BucketOpReply{
 	string ErrMsg = 3;
 }
 
+//数据块描述
+message Block{
+	string DataTableName = 1;//数据块表表名
+	int64 BlockSize = 2; //数据块大小
+	int64 BlockId = 3; //数据块Id
+}
+
+//一个对象的数据块列表
+message DataBlocks{
+	repeated Block BlockList = 1; //一个对象被分割为多个block, 使用BlockList存储所有块信息
+} 
+
 service RaftService{
     rpc RequestVote (RequestVoteArgs) returns (RequestVoteReply){}
 	rpc AppendEntries(AppendEntriesArgs) returns (AppendEntriesReply){}
