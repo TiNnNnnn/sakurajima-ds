@@ -171,6 +171,33 @@ message DataBlocks{
 	repeated Block BlockList = 1; //一个对象被分割为多个block, 使用BlockList存储所有块信息
 } 
 
+/*
+	元数据服务模块
+*/
+enum MetaOpType{
+	PutName = 0;
+	PutObject = 1;
+	GetObjectList = 2;
+	QueryList = 3;
+}
+
+message MetaArgs{
+	MetaOpType OpType = 1;
+	string BucketName = 2;
+	string ObjectName = 3;
+	int64 ObjectId = 4;
+	int64 Num = 5;
+	DataBlocks BlockList = 6;
+}
+
+message MetaReply{
+	string ErrMsg = 1;
+	int64 ErrCode = 2;
+	int64 LeaderId = 3;
+	int64 BlockId = 4;
+	repeated int64 BlockIdList = 6;
+}
+
 service RaftService{
     rpc RequestVote (RequestVoteArgs) returns (RequestVoteReply){}
 	rpc AppendEntries(AppendEntriesArgs) returns (AppendEntriesReply){}
@@ -180,6 +207,8 @@ service RaftService{
 	
 	rpc DoConfig(ConfigArgs) returns (ConfigReply){}
 	rpc DoBucket(BucketOpArgs)returns (BucketOpReply){}
+
+	rpc DoMeta(MetaArgs) returns (MetaReply){}
 }
 
 

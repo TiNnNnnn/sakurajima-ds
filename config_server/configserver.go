@@ -125,7 +125,7 @@ func (cs *ConfigServer) ApplingToStm(done <-chan interface{}) {
 				if err != nil {
 					reply.ErrMsg = err.Error()
 				}
-				tinnraft.DLog("query configs: ", string(confBytes))
+				tinnraft.DLog("query configs: %v", string(confBytes))
 
 				reply.Config = &tinnraftpb.ServerConfig{}
 				reply.Config.ConfigVersion = int64(conf.Version)
