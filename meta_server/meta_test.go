@@ -3,7 +3,6 @@ package meta_server
 import (
 	"sakurajima-ds/storage_engine"
 	"sakurajima-ds/tinnraft"
-	"sakurajima-ds/tinnraftpb"
 	"strconv"
 	"testing"
 )
@@ -14,45 +13,36 @@ func TestMetaPutName(t *testing.T) {
 		tinnraft.DLog("build storage engine failer: %v", err.Error())
 		return
 	}
-
 	stm := MakeMetaStm(newEngine)
+	t.Logf("-----------------test putMetadata----------------")
+	stm.PutMetadata(0, "test", "yyk", 1, 1024, "sxsaxs&*saajisoo")
+	stm.PutMetadata(0, "test", "yyk", 2, 1099, "sx788xs&*sajlisoo")
+	stm.PutMetadata(0, "test", "lgh", 2, 10000, "09080798&*sajlisoo")
 
-	t.Log("----测试 putName -------")
+	tkey := META + strconv.Itoa(int(0)) + "_" + "test" + "_" + "yyk"
+	ret, _ := stm.engine.GetAllPrefixKey(tkey)
 
-	stm.PutName("root", "test", 1)
-	stm.PutName("root", "yyk", 2)
-	//t.Logf("%v", bid)
+	t.Logf("ret: %v", ret)
+	t.Log("\n")
 
-	k, _ := stm.engine.GetAllPrefixKey(META + "root")
-	t.Logf("以meta_root为前缀的内容: %v", k)
+	t.Logf("-----------------test getMetadata----------------")
+	ret2, _ := stm.GetMetadata(0, "test", "yyk", 1)
+	t.Logf("get result: %v", ret2)
+	t.Log("\n")
 
-	t.Log("----测试 putObject-----------")
+	t.Logf("-----------------test SearchLastestVersion----------------")
+	ret3,_ := stm.SearchLastestVersion(0, "test", "yyk")
+	t.Logf("Lastest verison : %v", ret3)
+	t.Log("\n")
 
-	lists := [11]*tinnraftpb.Block{}
+	t.Logf("-----------------test SearcAllVersion----------------")
+	ret4,_ := stm.SearvhAllVersion(0, "test", "lgh",0,100)
+	t.Logf("Lastest verison : %v", ret4)
+	t.Log("\n")
 
-	for i := 1; i <= 10; i++ {
-
-		var tmp = tinnraftpb.Block{
-			DataTableName: "block_" + strconv.Itoa(i),
-			BlockSize:     10,
-			BlockId:       int64(i),
-		}
-		lists[i] = &tmp
-	}
-
-	//t.Logf("lists: %v", lists)
-	blocks := tinnraftpb.DataBlocks{
-		BlockList: lists[1:10],
-	}
-
-	stm.PutObject(1, &blocks)
-	k, _ = stm.engine.GetAllPrefixKey("ob_1")
-	t.Logf("以ob_1为前缀的内容: %v", k)
-
-
-	t.Log("----测试 GetObjectList-----------")
-	
-	l,_ := stm.GetBlockList("roottest", 4)
-	t.Logf("查找roottest的4个block块 %v", l)
-
+	t.Logf("-----------------test DelMeataData----------------")
+	stm.DelMetadata(0, "test", "lgh",2)
+	ret5,_ := stm.SearvhAllVersion(0, "test", "lgh",0,100)
+	t.Logf("Lastest verison : %v", ret5)
+	t.Log("\n")
 }
