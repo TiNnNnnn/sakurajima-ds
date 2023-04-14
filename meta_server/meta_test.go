@@ -19,7 +19,7 @@ func TestMetaPutName(t *testing.T) {
 	stm.PutMetadata(0, "test", "yyk", 2, 1099, "sx788xs&*sajlisoo")
 	stm.PutMetadata(0, "test", "lgh", 2, 10000, "09080798&*sajlisoo")
 
-	tkey := META + strconv.Itoa(int(0)) + "_" + "test" + "_" + "yyk"
+	tkey := META + strconv.Itoa(int(2345)) + "_" + "yyk" + "_" + "test"
 	ret, _ := stm.engine.GetAllPrefixKey(tkey)
 
 	t.Logf("ret: %v", ret)

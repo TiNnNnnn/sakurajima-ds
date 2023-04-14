@@ -43,13 +43,13 @@ func (stm *MetaStateMachine) PutMetadata(userid int64, bucketName string, name s
 	}
 	newMetaBytes, err := json.Marshal(newMeta)
 	if err != nil {
-		log.Fatalln("newMeta Marshal failed")
+		log.Printf("newMeta Marshal failed")
 		return err
 	}
 	key := META + strconv.Itoa(int(userid)) + "_" + bucketName + "_" + name + "_" + strconv.Itoa(version)
 	err = stm.engine.Put(key, string(newMetaBytes))
 	if err != nil {
-		log.Fatalln("put new metadata to stm failed")
+		log.Printf("put new metadata to stm failed")
 		return err
 	}
 	return nil
@@ -66,7 +66,7 @@ func (stm *MetaStateMachine) getMetadata(userid int64, bucketName string, name s
 	key := META + strconv.Itoa(int(userid)) + "_" + bucketName + "_" + name + "_" + strconv.Itoa(version)
 	metaBytes, err := stm.engine.Get(key)
 	if err != nil {
-		log.Fatalln("find meta by useid&bucketName&objectName/version faield")
+		log.Printf("find meta by useid&bucketName&objectName/version faield")
 		return MetaData{}, err
 	}
 	retmeta := &MetaData{}
@@ -78,7 +78,7 @@ func (stm *MetaStateMachine) SearchLastestVersion(userid int64, bucketName strin
 	key := META + strconv.Itoa(int(userid)) + "_" + bucketName + "_" + name
 	metaBytesList, err := stm.engine.GetAllPrefixKey(key)
 	if err != nil {
-		log.Fatalln("find lastest version from stm failed")
+		log.Printf("find lastest version from stm failed")
 		return MetaData{}, err
 	}
 
@@ -92,7 +92,7 @@ func (stm *MetaStateMachine) SearchLastestVersion(userid int64, bucketName strin
 			*retmeta = *tmpmeta
 		}
 	}
-	//log.Fatalf("lasted versionid: %v", maxVersion)
+	//log.Printf("lasted versionid: %v", maxVersion)
 	if maxVersion < 1 {
 		err := errors.New("find no meta by any version")
 		return MetaData{}, err
@@ -113,7 +113,7 @@ func (stm *MetaStateMachine) SearvhAllVersion(userid int64, bucketName, name str
 	key := META + strconv.Itoa(int(userid)) + "_" + bucketName + "_" + name
 	metaBytesList, err := stm.engine.GetAllPrefixKey(key)
 	if err != nil {
-		log.Fatalln("find all version from stm failed")
+		log.Printf("find all version from stm failed")
 		return nil, err
 	}
 	retmetalist := make([]MetaData, 0)
@@ -121,7 +121,7 @@ func (stm *MetaStateMachine) SearvhAllVersion(userid int64, bucketName, name str
 		tmpmeta := &MetaData{}
 		err = json.Unmarshal([]byte(v), tmpmeta)
 		if err != nil {
-			log.Fatalln("newMeta Marshal failed")
+			log.Printf("newMeta Marshal failed")
 			return nil, err
 		}
 		retmetalist = append(retmetalist, *tmpmeta)
@@ -132,7 +132,7 @@ func (stm *MetaStateMachine) SearvhAllVersion(userid int64, bucketName, name str
 func (stm *MetaStateMachine) DelMetadata(userid int64, bucketName, name string, version int) error {
 	_, err := stm.GetMetadata(userid, bucketName, name, version)
 	if err != nil {
-		log.Fatalln("deltet failed,can't find this meta")
+		log.Printf("deltet failed,can't find this meta")
 		return err
 	}
 	delkey := META + strconv.Itoa(int(userid)) + "_" + bucketName + "_" + name + "_" + strconv.Itoa(version)

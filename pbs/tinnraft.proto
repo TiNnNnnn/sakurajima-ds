@@ -174,15 +174,15 @@ message DataBlocks{
 /*
 	元数据服务模块
 */
-enum MetaOpType{
+enum MetaOpType2{
 	PutName = 0;
 	PutObject = 1;
 	GetObjectList = 2;
 	QueryList = 3;
 }
 
-message MetaArgs{
-	MetaOpType OpType = 1;
+message MetaArgs2{
+	MetaOpType2 OpType = 1;
 	string BucketName = 2;
 	string ObjectName = 3;
 	int64 ObjectId = 4;
@@ -190,13 +190,51 @@ message MetaArgs{
 	DataBlocks BlockList = 6;
 }
 
-message MetaReply{
+message MetaReply2{
 	string ErrMsg = 1;
 	int64 ErrCode = 2;
 	int64 LeaderId = 3;
 	int64 BlockId = 4;
 	repeated int64 BlockIdList = 6;
 }
+
+enum MetaOpType{
+	PutMetadata = 0;
+	GetMetadata = 1;
+	SearchLastestVersion = 2;
+	SearchAllVersion = 3;
+	DelMetadata = 4;
+	AddVersion = 5;
+}
+
+message MetaArgs{
+	MetaOpType op = 1;
+	int64 UserId = 2;
+	string BucketName = 3;
+	string ObjectName = 4;
+	int64 Version = 5;
+	int64 Size = 6;
+	string Hash = 7;
+}
+
+
+message Metadata{
+	int64 UserId = 2;
+	string BucketName = 3;
+	string ObjectName = 4;
+	int64 Version = 5;
+	int64 Size = 6;
+	string Hash = 7;
+}
+
+message MetaReply{
+	string ErrMsg = 1;
+	int64 ErrCode = 2;
+	int64 LeaderId = 3;
+	repeated Metadata metas = 4;
+	Metadata meta = 5;
+}
+
 
 service RaftService{
     rpc RequestVote (RequestVoteArgs) returns (RequestVoteReply){}
