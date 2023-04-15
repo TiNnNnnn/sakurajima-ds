@@ -213,8 +213,6 @@ func (ms *MetaServer) ApplingToStm(done <-chan interface{}) {
 			}
 			ch := ms.getNotifyChan(int(appliedMsg.CommandIndex))
 			ch <- reply
-
-			
 		}
 	}
 }
@@ -243,7 +241,6 @@ func (ms *MetaServer) DoMeta(ctx context.Context, args *tinnraftpb.MetaArgs) (*t
 	ms.mu.Lock()
 	ch := ms.getNotifyChan(idx)
 	ms.mu.Unlock()
-
 
 	select {
 	case res := <-ch:

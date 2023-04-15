@@ -91,7 +91,6 @@ message CommandArgs{
 	int64 Client_id = 4;
 	int64 command_id = 5;
 	bytes context = 6;
-
 }
 
 message CommandReply{
@@ -138,7 +137,7 @@ message ConfigReply{
 	int64 err_code = 4;
 }
 
-// 服务器分组相关操作
+// shared服务器分组相关操作
 enum BucketOpType{
 	GetData = 0;
 	DelData = 1;
