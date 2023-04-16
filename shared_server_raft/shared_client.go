@@ -5,6 +5,7 @@ import (
 	"crypto/rand"
 	"errors"
 	"fmt"
+	"log"
 	"math/big"
 	"sakurajima-ds/common"
 	"sakurajima-ds/config_server"
@@ -85,9 +86,11 @@ func (kvCli *ShardKVClient) DeleteBucketDatas(gid int, bucketIds []int64) string
 
 func (kvCli *ShardKVClient) SendRpcCommand(args *tinnraftpb.CommandArgs) (string, error) {
 	bucket_id := common.KeyToBucketId(args.Key)
+	log.Printf("---bucketId---: %v", bucket_id)
 	groupId := kvCli.config.Buckets[bucket_id]
 	if groupId == 0 {
-		return "", errors.New("there is no shared in charge of this bucke")
+		tinnraft.DLog("there is no shared in charge of this bucket")
+		return "", errors.New("there is no shared in charge of this bucket")
 	}
 	if servers, ok := kvCli.config.Groups[groupId]; ok {
 
@@ -134,7 +137,7 @@ func (kvCli *ShardKVClient) SendRpcCommand(args *tinnraftpb.CommandArgs) (string
 func (kvCli *ShardKVClient) SendBucketRpcCommand(args *tinnraftpb.BucketOpArgs) string {
 	for {
 		if servers, ok := kvCli.config.Groups[int(args.GroupId)]; ok {
-			for _, serverAddr := range servers {
+			for _, serverAddr := range servers { //获取当前分组对应的集群server addr，尝试发送
 				kvCli.client = tinnraft.MakeClientEnd(99, serverAddr)
 				reply, err := (*kvCli.client.GetRaftServiceCli()).DoBucket(context.Background(), args)
 				if err == nil {

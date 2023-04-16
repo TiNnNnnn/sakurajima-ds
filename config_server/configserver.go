@@ -63,6 +63,14 @@ func (cs *ConfigServer) IsKilled() bool {
 	return atomic.LoadInt32(&cs.dead) == 1
 }
 
+func (s *ConfigServer) StopApply() {
+	close(s.applyCh)
+}
+
+func (s *ConfigServer) GetRaft() *tinnraft.Raft {
+	return s.tinnRf
+}
+
 func (cs *ConfigServer) getNotifyChan(index int) chan *tinnraftpb.ConfigReply {
 	if _, ok := cs.notifyChans[index]; !ok {
 		cs.notifyChans[index] = make(chan *tinnraftpb.ConfigReply, 1)
@@ -180,7 +188,7 @@ func (cs *ConfigServer) DoConfig(ctx context.Context, args *tinnraftpb.ConfigArg
 	}
 
 	go func() {
-		cs.mu.Lock()
+		cs.mu.RLock()
 		delete(cs.notifyChans, idx)
 		cs.mu.RUnlock()
 	}()

@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"log"
 	"sakurajima-ds/common"
 	"sakurajima-ds/config_server"
 	"sakurajima-ds/storage_engine"
@@ -70,10 +71,17 @@ func MakeShardKVServer(peerMaps map[int]string, nodeId int, groupId int, configS
 		configCli:   config_server.MakeCfgSvrClient(999, strings.Split(configSvrAddrs, ",")),
 	}
 
+	//初始化buckets
+	shardkv.MakeStm(shardkv.engine)
+
 	shardkv.curConfig = *shardkv.configCli.Query(-1)
 	shardkv.lastConfig = *shardkv.configCli.Query(-1)
 
 	shardkv.stopApplyCh = make(chan interface{})
+
+	go shardkv.ApplingToStm(shardkv.stopApplyCh)
+
+	go shardkv.ConfigAction()
 
 	return shardkv
 
@@ -81,6 +89,14 @@ func MakeShardKVServer(peerMaps map[int]string, nodeId int, groupId int, configS
 
 func (s *ShardKV) IsKilled() bool {
 	return atomic.LoadInt32(&s.dead) == 1
+}
+
+func (s *ShardKV) GetRaft() *tinnraft.Raft {
+	return s.tinnrf
+}
+
+func (s *ShardKV) CloseApply() {
+	close(s.stopApplyCh)
 }
 
 // 初始化状态机,创建BucketsNum个桶
@@ -125,7 +141,7 @@ func (s *ShardKV) ConfigAction() {
 	for !s.IsKilled() {
 		_, isLeader := s.tinnrf.GetState()
 		if isLeader {
-			tinnraft.DLog("")
+			tinnraft.DLog("go into config action")
 			s.mu.RLock()
 			allowedUpdtaeConf := true
 			for _, bucket := range s.stm {
@@ -135,6 +151,13 @@ func (s *ShardKV) ConfigAction() {
 					break
 				}
 			}
+
+			log.Printf("-------------------------------------\n")
+			for i, b := range s.stm {
+				log.Printf("{%v,%v,%v} ", i, b.ID, b.Status)
+			}
+			log.Printf("-------------------------------------\n")
+
 			if allowedUpdtaeConf {
 				tinnraft.DLog("allowed to perfrom next conf")
 			}
@@ -144,19 +167,20 @@ func (s *ShardKV) ConfigAction() {
 			if allowedUpdtaeConf {
 				//向configServer请求最新版本
 				nextConfig := s.configCli.Query(int64(curConfVersion) + 1)
-				if nextConfig == nil { //未发现新配置
+				if nextConfig == nil {
 					continue
 				}
-				//发现新配置
+
 				nextConfigBytes, _ := json.Marshal(nextConfig)
 				curConfigBytes, _ := json.Marshal(s.curConfig)
 
-				tinnraft.DLog("next conf: %v", string(nextConfigBytes))
-				tinnraft.DLog("cur conf: %v", string(curConfigBytes))
+				tinnraft.DLog("configserver last conf: %v", string(nextConfigBytes))
+				tinnraft.DLog("my cur conf: %v", string(curConfigBytes))
 
 				if nextConfig.Version == curConfVersion+1 {
+					//Leader通过Propose向raft层提交一个OpType_ConfigChange的提案
 					args := &tinnraftpb.CommandArgs{}
-					nextConfigBytes, _ := json.Marshal(nextConfigBytes)
+					nextConfigBytes, _ = json.Marshal(nextConfig)
 
 					args.Context = nextConfigBytes
 					args.OpType = tinnraftpb.OpType_ConfigChange
@@ -173,7 +197,7 @@ func (s *ShardKV) ConfigAction() {
 
 					reply := &tinnraftpb.CommandReply{}
 
-					//监听读取ch
+					//监听读取ch(此时已经应用到stm),填写reply返回给client
 					select {
 					case res := <-ch:
 						reply.Value = res.Value
@@ -218,38 +242,36 @@ func (s *ShardKV) ApplingToStm(done <-chan interface{}) {
 			var err error
 
 			switch args.OpType {
-			//数据请求
-			case tinnraftpb.OpType_Put:
+			case tinnraftpb.OpType_Put: //上传数据
 				bucketId := common.KeyToBucketId(args.Key)
 				if s.LegToServe(bucketId) {
-					tinnraft.DLog("put" + args.Key + " value " + args.Value + "to bucket " + strconv.Itoa(bucketId))
+					tinnraft.DLog("put " + args.Key + " value " + args.Value + "to bucket " + strconv.Itoa(bucketId))
 					s.stm[bucketId].Put(args.Key, args.Value)
 				}
-			case tinnraftpb.OpType_Get:
+			case tinnraftpb.OpType_Get: //下载数据
 				bucketId := common.KeyToBucketId(args.Key)
 				if s.LegToServe(bucketId) {
 					value, err = s.stm[bucketId].Get(args.Key)
-					tinnraft.DLog("get" + args.Key + " value " + value + "from bucket " + strconv.Itoa(bucketId))
+					tinnraft.DLog("get " + args.Key + " value " + value + " from bucket " + strconv.Itoa(bucketId))
 				}
 				reply.Value = value
-			case tinnraftpb.OpType_ConfigChange:
-				//目标配置
+			case tinnraftpb.OpType_ConfigChange: //ConfigServer内配置发生变化，SharedServer Config对应变化
 				nextConfig := &config_server.Config{}
 				json.Unmarshal(args.Context, nextConfig)
 
 				if nextConfig.Version == s.curConfig.Version+1 {
 					for i := 0; i < common.BucketsNum; i++ {
-
+						//更新bucketidx和groupId的映射关系
 						if s.curConfig.Buckets[i] != s.groupId && nextConfig.Buckets[i] == s.groupId {
 							groupId := s.curConfig.Buckets[i]
 							if groupId != 0 {
-								s.stm[i].Status = Runing
+								s.stm[i].Status = Runing //启动该桶
 							}
 						}
 						if s.curConfig.Buckets[i] == s.groupId && nextConfig.Buckets[i] != s.groupId {
 							groupId := nextConfig.Buckets[i]
 							if groupId != 0 {
-								s.stm[i].Status = Stopped
+								s.stm[i].Status = Stopped //关闭该桶
 							}
 						}
 					}
@@ -260,6 +282,7 @@ func (s *ShardKV) ApplingToStm(done <-chan interface{}) {
 
 				configBytes, _ := json.Marshal(s.curConfig)
 				tinnraft.DLog("appiled config to server: %v", string(configBytes))
+
 			case tinnraftpb.OpType_InsertBuckets:
 				bucketOpArgs := &tinnraftpb.BucketOpArgs{}
 				json.Unmarshal(args.Context, bucketOpArgs)
