@@ -9,6 +9,7 @@ import (
 )
 
 type Config struct {
+	//mu      sync.Mutex
 	Version int
 	Buckets [common.BucketsNum]int
 	Groups  map[int][]string
@@ -29,4 +30,3 @@ func CopyGroup(groups map[int][]string) map[int][]string {
 	}
 	return newGroup
 }
-

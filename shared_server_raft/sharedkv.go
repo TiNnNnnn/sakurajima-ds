@@ -68,7 +68,7 @@ func MakeShardKVServer(peerMaps map[int]string, nodeId int, groupId int, configS
 		stm:         make(map[int]*Bucket),
 		engine:      newengine,
 		notifyChans: map[int]chan *tinnraftpb.CommandReply{},
-		configCli:   config_server.MakeCfgSvrClient(999, strings.Split(configSvrAddrs, ",")),
+		configCli:   config_server.MakeCfgSvrClient(99, strings.Split(configSvrAddrs, ",")),
 	}
 
 	//初始化buckets
@@ -116,7 +116,7 @@ func (s *ShardKV) getNotifyChan(index int) chan *tinnraftpb.CommandReply {
 }
 
 func (s *ShardKV) LegToServe(bucketId int) bool {
-	if s.curConfig.Buckets[bucketId] == s.groupId && s.stm[bucketId].Status == Runing {
+	if s.curConfig.Buckets[bucketId] == s.groupId && (s.stm[bucketId].Status == Runing) {
 		return true
 	}
 	return false
@@ -173,20 +173,22 @@ func (s *ShardKV) ConfigAction() {
 
 				nextConfigBytes, _ := json.Marshal(nextConfig)
 				curConfigBytes, _ := json.Marshal(s.curConfig)
+				lastConfigBytes, _ := json.Marshal(s.lastConfig)
 
 				tinnraft.DLog("configserver last conf: %v", string(nextConfigBytes))
 				tinnraft.DLog("my cur conf: %v", string(curConfigBytes))
+				tinnraft.DLog("my last conf: %v", string(lastConfigBytes))
 
 				if nextConfig.Version == curConfVersion+1 {
 					//Leader通过Propose向raft层提交一个OpType_ConfigChange的提案
 					args := &tinnraftpb.CommandArgs{}
-					nextConfigBytes, _ = json.Marshal(nextConfig)
+					nextConfigBytes, _ := json.Marshal(nextConfig)
 
 					args.Context = nextConfigBytes
 					args.OpType = tinnraftpb.OpType_ConfigChange
 
-					argsBuyes, _ := json.Marshal(args)
-					idx, _, isLeader := s.tinnrf.Propose(argsBuyes)
+					argsBytes, _ := json.Marshal(args)
+					idx, _, isLeader := s.tinnrf.Propose(argsBytes)
 					if !isLeader {
 						return
 					}
@@ -211,10 +213,8 @@ func (s *ShardKV) ConfigAction() {
 						delete(s.notifyChans, idx)
 						s.mu.Unlock()
 					}()
-
 				}
 			}
-
 		}
 		time.Sleep(1 * time.Second)
 	}
@@ -266,12 +266,14 @@ func (s *ShardKV) ApplingToStm(done <-chan interface{}) {
 							groupId := s.curConfig.Buckets[i]
 							if groupId != 0 {
 								s.stm[i].Status = Runing //启动该桶
+								tinnraft.DLog("chang the bucket %d status to RUNNING", i)
 							}
 						}
 						if s.curConfig.Buckets[i] == s.groupId && nextConfig.Buckets[i] != s.groupId {
 							groupId := nextConfig.Buckets[i]
 							if groupId != 0 {
 								s.stm[i].Status = Stopped //关闭该桶
+								tinnraft.DLog("chang the bucket %d status to STOPPED", i)
 							}
 						}
 					}
