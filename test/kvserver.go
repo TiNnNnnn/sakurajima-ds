@@ -36,6 +36,7 @@ func main() {
 		fmt.Printf("faield to listen: %v\n", err)
 		return
 	}
+	
 
 	fmt.Printf("[server %v] listening on %s\n", serverId, ksv.PeersMap[serverId])
 	s := grpc.NewServer()

@@ -1,46 +1,23 @@
-package start
+package main
 
 import (
 	"bytes"
+	"flag"
 	"fmt"
 	"log"
 	"net/http"
 	"os"
 	"os/exec"
 	"strconv"
-	"strings"
+
+	"github.com/gorilla/websocket"
 )
 
 var logChan = make(chan string)
 
-func Handler(w http.ResponseWriter, r *http.Request) {
-	m := r.Method
+var addr = flag.String("addr", "0.0.0.0:10055", "http service address")
 
-	if m == http.MethodPut {
-		configOp := strings.Split(r.URL.EscapedPath(), "/")[2]
-		log.Printf("configOp: %v\n", configOp)
-		if configOp == "kvserver" {
-			go StartKvServer(w, r)
-			go readLog()
-			return
-		}
-	}
-	if m == http.MethodGet {
-		//get(w, r)
-
-	}
-	w.WriteHeader(http.StatusMethodNotAllowed)
-}
-
-func readLog() {
-	for {
-		c := <-logChan
-		if len(c) > 0 {
-			fmt.Print("***** " + c)
-			
-		}
-	}
-}
+var upgrader = websocket.Upgrader{}
 
 func StartKvServer(w http.ResponseWriter, r *http.Request) {
 
@@ -50,7 +27,6 @@ func StartKvServer(w http.ResponseWriter, r *http.Request) {
 	}
 	cmd := exec.Command("./../output/kvserver", sid)
 
-	//stdin,stdout,stderr重定向
 	cmd.Stdin = os.Stdin
 	var out bytes.Buffer
 	cmd.Stdout = &out
@@ -63,15 +39,11 @@ func StartKvServer(w http.ResponseWriter, r *http.Request) {
 				log.Print(err)
 				continue
 			}
-			//fmt.Print(l)
 			logChan <- l
 
 		}
 	}()
 
-	//go readLog()
-
-	//创建子进程，并进行程序替换(父进程之后的代码不会再运行)
 	cmd.Run()
 
 }
@@ -83,4 +55,34 @@ func GetServerIdFromHeader(h http.Header) string {
 		return ""
 	}
 	return kvs_id
+}
+
+func start(w http.ResponseWriter, r *http.Request) {
+
+	c, err := upgrader.Upgrade(w, r, nil)
+	if err != nil {
+		log.Print("upgrade:", err)
+		return
+	}
+	defer c.Close()
+
+	go StartKvServer(w, r)
+
+	for {
+		line := <-logChan
+		if len(line) > 0 {
+			fmt.Print("***** " + line)
+			c.WriteMessage(1, []byte(line))
+
+		}
+	}
+}
+
+
+
+func main() {
+	flag.Parse()
+	log.SetFlags(0)
+	http.HandleFunc("/start", start)
+	log.Fatal(http.ListenAndServe(*addr, nil))
 }

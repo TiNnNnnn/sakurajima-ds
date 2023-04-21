@@ -31,6 +31,8 @@ func MakeKvClient(serverId int, serverAddr string) *KvClient {
 	}
 }
 
+
+
 func (kvc *KvClient) Get(key string) string {
 	args := &tinnraftpb.CommandArgs{
 		Key:      key,

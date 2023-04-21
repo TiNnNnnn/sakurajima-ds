@@ -6,6 +6,8 @@ import (
 	"sakurajima-ds/api_gateway/config"
 	"sakurajima-ds/api_gateway/objects"
 	"sakurajima-ds/api_gateway/start"
+
+	//_ "github.com/gorilla/websocket"
 )
 
 func main() {
@@ -16,6 +18,3 @@ func main() {
 }
 
 
-/*
-网关服务器
-*/

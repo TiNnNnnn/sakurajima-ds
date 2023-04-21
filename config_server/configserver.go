@@ -63,6 +63,14 @@ func (cs *ConfigServer) IsKilled() bool {
 	return atomic.LoadInt32(&cs.dead) == 1
 }
 
+func (s *ConfigServer) GetRaftNodesStat() string {
+	return s.tinnRf.GetNowState()
+}
+
+func (s *ConfigServer) GetRaftNodeTerm() int {
+	return s.tinnRf.GetNowTerm()
+}
+
 func (s *ConfigServer) StopApply() {
 	close(s.applyCh)
 }

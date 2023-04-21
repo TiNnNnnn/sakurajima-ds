@@ -235,6 +235,19 @@ message MetaReply{
 }
 
 
+
+enum LogOp{
+	GetAll = 0;
+}
+
+message LogArgs{
+	LogOp op= 1;
+}
+
+message LogReply{
+	string LogMsg = 1;
+}
+
 service RaftService{
     rpc RequestVote (RequestVoteArgs) returns (RequestVoteReply){}
 	rpc AppendEntries(AppendEntriesArgs) returns (AppendEntriesReply){}
@@ -246,6 +259,8 @@ service RaftService{
 	rpc DoBucket(BucketOpArgs)returns (BucketOpReply){}
 
 	rpc DoMeta(MetaArgs) returns (MetaReply){}
+
+	rpc DoLog(LogArgs) returns (LogReply){}
 }
 
 

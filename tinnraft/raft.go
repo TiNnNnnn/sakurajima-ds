@@ -157,6 +157,20 @@ func (rf *Raft) GetState() (int, bool) {
 	return term, isleader
 }
 
+// 获取当前节点状态/角色
+func (rf *Raft) GetNowState() string {
+	rf.mu.Lock()
+	defer rf.mu.Unlock()
+	return string(rf.state)
+}
+
+// 获取当前节点任期
+func (rf *Raft) GetNowTerm() int {
+	rf.mu.Lock()
+	defer rf.mu.Lock()
+	return rf.currentTerm
+}
+
 // 将状态持久化
 func (rf *Raft) persist() {
 	rf.persister.PersistRaftState(int64(rf.currentTerm), int64(rf.votedFor))

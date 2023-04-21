@@ -29,6 +29,7 @@ type RaftServiceClient interface {
 	DoConfig(ctx context.Context, in *ConfigArgs, opts ...grpc.CallOption) (*ConfigReply, error)
 	DoBucket(ctx context.Context, in *BucketOpArgs, opts ...grpc.CallOption) (*BucketOpReply, error)
 	DoMeta(ctx context.Context, in *MetaArgs, opts ...grpc.CallOption) (*MetaReply, error)
+	DoLog(ctx context.Context, in *LogArgs, opts ...grpc.CallOption) (*LogReply, error)
 }
 
 type raftServiceClient struct {
@@ -102,6 +103,15 @@ func (c *raftServiceClient) DoMeta(ctx context.Context, in *MetaArgs, opts ...gr
 	return out, nil
 }
 
+func (c *raftServiceClient) DoLog(ctx context.Context, in *LogArgs, opts ...grpc.CallOption) (*LogReply, error) {
+	out := new(LogReply)
+	err := c.cc.Invoke(ctx, "/pbs.RaftService/DoLog", in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 // RaftServiceServer is the server API for RaftService service.
 // All implementations must embed UnimplementedRaftServiceServer
 // for forward compatibility
@@ -113,6 +123,7 @@ type RaftServiceServer interface {
 	DoConfig(context.Context, *ConfigArgs) (*ConfigReply, error)
 	DoBucket(context.Context, *BucketOpArgs) (*BucketOpReply, error)
 	DoMeta(context.Context, *MetaArgs) (*MetaReply, error)
+	DoLog(context.Context, *LogArgs) (*LogReply, error)
 	mustEmbedUnimplementedRaftServiceServer()
 }
 
@@ -140,6 +151,9 @@ func (UnimplementedRaftServiceServer) DoBucket(context.Context, *BucketOpArgs) (
 }
 func (UnimplementedRaftServiceServer) DoMeta(context.Context, *MetaArgs) (*MetaReply, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method DoMeta not implemented")
+}
+func (UnimplementedRaftServiceServer) DoLog(context.Context, *LogArgs) (*LogReply, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method DoLog not implemented")
 }
 func (UnimplementedRaftServiceServer) mustEmbedUnimplementedRaftServiceServer() {}
 
@@ -280,6 +294,24 @@ func _RaftService_DoMeta_Handler(srv interface{}, ctx context.Context, dec func(
 	return interceptor(ctx, in, info, handler)
 }
 
+func _RaftService_DoLog_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(LogArgs)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(RaftServiceServer).DoLog(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: "/pbs.RaftService/DoLog",
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(RaftServiceServer).DoLog(ctx, req.(*LogArgs))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 // RaftService_ServiceDesc is the grpc.ServiceDesc for RaftService service.
 // It's only intended for direct use with grpc.RegisterService,
 // and not to be introspected or modified (even as a copy)
@@ -314,6 +346,10 @@ var RaftService_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "DoMeta",
 			Handler:    _RaftService_DoMeta_Handler,
+		},
+		{
+			MethodName: "DoLog",
+			Handler:    _RaftService_DoLog_Handler,
 		},
 	},
 	Streams:  []grpc.StreamDesc{},
