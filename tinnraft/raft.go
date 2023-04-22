@@ -2,6 +2,7 @@ package tinnraft
 
 import (
 	"fmt"
+	api_gateway "sakurajima-ds/api_gateway_2"
 	"sakurajima-ds/storage_engine"
 	"sakurajima-ds/tinnraftpb"
 	"sync"
@@ -23,6 +24,8 @@ type Raft struct {
 	persister *Log
 	me        int
 	dead      int32
+
+	apiGateClient *api_gateway.ApiGatwayClient //api_server客户端
 
 	state RaftState //raft状态机
 	//appendEntryCh chan *tinnraftpb.Entry
@@ -52,7 +55,7 @@ type Raft struct {
 
 // 初始化一个raft主机
 func MakeRaft(peers []*ClientEnd, me int, dbEngine storage_engine.KvStorage,
-	applyCh chan *tinnraftpb.ApplyMsg) *Raft {
+	applyCh chan *tinnraftpb.ApplyMsg, apigateclient *api_gateway.ApiGatwayClient) *Raft {
 	rf := &Raft{}
 	rf.peers = peers
 	rf.persister = MakePersister(dbEngine)
@@ -80,6 +83,8 @@ func MakeRaft(peers []*ClientEnd, me int, dbEngine storage_engine.KvStorage,
 	rf.applyCh = applyCh
 	rf.applyCond = sync.NewCond(&rf.mu)
 
+	rf.apiGateClient = apigateclient
+
 	// initialize from state persisted before a crash
 	rf.readPersist()
 
@@ -90,7 +95,7 @@ func MakeRaft(peers []*ClientEnd, me int, dbEngine storage_engine.KvStorage,
 	fmt.Println("-----------------------------------")
 
 	DLog("[%v]: term %v | the last log idx is %v", rf.me, rf.currentTerm, rf.log.GetPersistLastEntry().Index)
-
+	
 	//开启一个协程进行选举
 	go rf.ticker()
 

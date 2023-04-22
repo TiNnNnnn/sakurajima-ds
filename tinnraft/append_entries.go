@@ -136,6 +136,7 @@ func (rf *Raft) leaderSendEntries(serverId int, args *tinnraftpb.AppendEntriesAr
 			if len(args.Entries) > 0 {
 				DLog("[%v]: append entries to %v success, next %v match %v\n", rf.me, serverId, rf.nextIndex[serverId], rf.matchIndex[serverId])
 			} else {
+				rf.apiGateClient.LogHeartBeat("send heatbeat success", rf.me, serverId)
 				DLog("[%v]: term: %v | send heartbeats to %v success", rf.me, rf.currentTerm, serverId)
 			}
 
@@ -233,7 +234,7 @@ func (rf *Raft) HandleAppendEntries(args *tinnraftpb.AppendEntriesArgs, reply *t
 	rf.resetElectionTimer()
 
 	if args.PrevLogIndex < rf.log.GetPersistFirstEntry().Index {
-		
+
 		return
 	}
 

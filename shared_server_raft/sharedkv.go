@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"log"
+	api_gateway "sakurajima-ds/api_gateway_2"
 	"sakurajima-ds/common"
 	"sakurajima-ds/config_server"
 	"sakurajima-ds/storage_engine"
@@ -52,7 +53,9 @@ func MakeShardKVServer(peerMaps map[int]string, nodeId int, groupId int, configS
 	logengine := storage_engine.EngineFactory("leveldb",
 		"./log_data/shared_svr/group_"+strconv.Itoa(groupId)+"/node_"+strconv.Itoa(nodeId))
 
-	tinnRf := tinnraft.MakeRaft(clients, nodeId, logengine, newApplyCh)
+	apigateclient := api_gateway.MakeApiGatwayClient(99, "127.0.0.1:10030")
+
+	tinnRf := tinnraft.MakeRaft(clients, nodeId, logengine, newApplyCh, apigateclient)
 
 	newengine := storage_engine.EngineFactory("leveldb",
 		"./data/group_"+strconv.Itoa(groupId)+"/node_"+strconv.Itoa(nodeId))

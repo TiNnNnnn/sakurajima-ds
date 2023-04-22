@@ -1,9 +1,9 @@
 package tinnraft
 
 import (
-	_"fmt"
+	_ "fmt"
 	"log"
-	_"runtime"
+	_ "runtime"
 	_ "time"
 )
 

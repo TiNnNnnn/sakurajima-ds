@@ -5,6 +5,7 @@ import (
 	"context"
 	"encoding/gob"
 	"encoding/json"
+	api_gateway "sakurajima-ds/api_gateway_2"
 	"sakurajima-ds/common"
 	"sakurajima-ds/storage_engine"
 	"sakurajima-ds/tinnraft"
@@ -51,7 +52,7 @@ type KvServer struct {
 
 	notifyChans map[int]chan *tinnraftpb.CommandReply //从ApplingToStm协程中获取操作结果
 
-	stopApplyCh chan interface{} 
+	stopApplyCh chan interface{}
 
 	tinnraftpb.UnimplementedRaftServiceServer
 }
@@ -79,8 +80,10 @@ func MakeKvServer(serverId int) *KvServer {
 	//创建管道，应用层监听raft提交的操作与数据信息(CommandArgs)
 	newApplyCh := make(chan *tinnraftpb.ApplyMsg)
 
+	apigateclient := api_gateway.MakeApiGatwayClient(99, "127.0.0.1:10030")
+
 	//实例化raft模块
-	newRaft := tinnraft.MakeRaft(clientEnds, serverId, logEngine, newApplyCh)
+	newRaft := tinnraft.MakeRaft(clientEnds, serverId, logEngine, newApplyCh, apigateclient)
 
 	//实例化kvserver
 	kvserver := &KvServer{

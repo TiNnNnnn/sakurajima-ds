@@ -37,7 +37,6 @@ func main() {
 		return
 	}
 	
-
 	fmt.Printf("[server %v] listening on %s\n", serverId, ksv.PeersMap[serverId])
 	s := grpc.NewServer()
 	tinnraftpb.RegisterRaftServiceServer(s, kvserver)
