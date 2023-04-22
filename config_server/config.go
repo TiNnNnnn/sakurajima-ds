@@ -15,6 +15,7 @@ type Config struct {
 	Groups  map[int][]string
 }
 
+
 func MakeDefaultConfig() Config {
 	return Config{
 		Groups: make(map[int][]string),

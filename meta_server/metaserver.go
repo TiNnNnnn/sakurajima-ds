@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"log"
+	api_gateway "sakurajima-ds/api_gateway_2"
 	"sakurajima-ds/common"
 	"sakurajima-ds/storage_engine"
 	"sakurajima-ds/tinnraft"
@@ -42,7 +43,9 @@ func MakeMetaServer(peerMaps map[int]string, serverId int) *MetaServer {
 
 	logEngine := storage_engine.EngineFactory("leveldb", "./log_data/"+"metaserver/node_"+strconv.Itoa(serverId))
 
-	tinnRf := tinnraft.MakeRaft(clientEnds, serverId, logEngine, applyCh)
+	apigateclient := api_gateway.MakeApiGatwayClient(99, "127.0.0.1:10030")
+
+	tinnRf := tinnraft.MakeRaft(clientEnds, serverId, logEngine, applyCh, apigateclient)
 
 	metaServer := &MetaServer{
 		dead:        0,

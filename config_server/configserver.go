@@ -4,11 +4,11 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	api_gateway "sakurajima-ds/api_gateway_2"
 	"sakurajima-ds/common"
 	"sakurajima-ds/storage_engine"
 	"sakurajima-ds/tinnraft"
 	"sakurajima-ds/tinnraftpb"
-	"sakurajima-ds/api_gateway_2"
 	"strconv"
 	"strings"
 	"sync"
@@ -43,9 +43,9 @@ func MakeConfigServer(peerMaps map[int]string, serverId int) *ConfigServer {
 
 	logEngine := storage_engine.EngineFactory("leveldb", "./log_data/"+"configserver/node_"+strconv.Itoa(serverId))
 
-	apigateclient:= api_gateway.MakeApiGatwayClient(99, "127.0.0.1:10030")
+	apigateclient := api_gateway.MakeApiGatwayClient(99, "127.0.0.1:10030")
 
-	tinnRf := tinnraft.MakeRaft(clientEnds, serverId, logEngine, applyCh,apigateclient)
+	tinnRf := tinnraft.MakeRaft(clientEnds, serverId, logEngine, applyCh, apigateclient)
 
 	configServer := &ConfigServer{
 		dead:        0,
@@ -165,8 +165,6 @@ func (cs *ConfigServer) ApplingToStm(done <-chan interface{}) {
 		}
 	}
 }
-
-
 
 func (cs *ConfigServer) DoConfig(ctx context.Context, args *tinnraftpb.ConfigArgs) (*tinnraftpb.ConfigReply, error) {
 	reply := &tinnraftpb.ConfigReply{}

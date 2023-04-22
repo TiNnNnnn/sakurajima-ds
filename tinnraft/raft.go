@@ -95,7 +95,7 @@ func MakeRaft(peers []*ClientEnd, me int, dbEngine storage_engine.KvStorage,
 	fmt.Println("-----------------------------------")
 
 	DLog("[%v]: term %v | the last log idx is %v", rf.me, rf.currentTerm, rf.log.GetPersistLastEntry().Index)
-	
+
 	//开启一个协程进行选举
 	go rf.ticker()
 
