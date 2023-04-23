@@ -5,18 +5,20 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"log"
 	"net/http"
 	"os"
 	"os/exec"
 	"sakurajima-ds/tinnraftpb"
 	"strconv"
+	"sync"
 
 	"github.com/gorilla/websocket"
 )
 
 type ApiGatwayServer struct {
-	//mu         sync.Mutex
+	Mu       sync.Mutex
 	LogChan  chan string
 	MutiChan chan *tinnraftpb.LogArgs
 
@@ -39,7 +41,8 @@ func (as *ApiGatwayServer) StartKvServer(w http.ResponseWriter, r *http.Request)
 	if sid == "" {
 		return
 	}
-	cmd := exec.Command("./../output/kvserver", sid)
+	//./../../output/kvserver
+	cmd := exec.Command("./../../output/kvserver", sid)
 
 	cmd.Stdin = os.Stdin
 	var out bytes.Buffer
@@ -53,11 +56,48 @@ func (as *ApiGatwayServer) StartKvServer(w http.ResponseWriter, r *http.Request)
 				log.Print(err)
 				continue
 			}
+			//ch := as.GetNotifyChan(1)
 			as.LogChan <- l
-
 		}
 	}()
-	cmd.Run()
+
+	err := cmd.Run()
+	if err != nil {
+		fmt.Println("failed to begin the kvserver!")
+	}
+}
+
+// 启动ConfigServer
+func (as *ApiGatwayServer) StartConfigServer(w http.ResponseWriter, r *http.Request) {
+
+	sid := GetServerIdFromHeader(r.Header)
+	if sid == "" {
+		return
+	}
+	cmd := exec.Command("./../../output/configserver", sid)
+
+	cmd.Stdin = os.Stdin
+	var out bytes.Buffer
+	out.Grow(40960)
+	cmd.Stdout = &out
+	cmd.Stderr = &out
+
+	go func() {
+		for {
+			l, err := out.ReadString('\n')
+			if err != nil && err.Error() != "EOF" {
+				log.Print(err)
+				continue
+			}
+			//ch := as.GetNotifyChan(1)
+			as.LogChan <- l
+		}
+	}()
+
+	err := cmd.Run()
+	if err != nil {
+		fmt.Println("failed to begin the configserver!")
+	}
 }
 
 // 将不同类别的日志发送给客户端
@@ -65,7 +105,7 @@ func (as *ApiGatwayServer) SendMutiLog(c *websocket.Conn) {
 	for {
 		mutiLog := <-as.MutiChan
 		logbytes, err := json.Marshal(mutiLog)
-		log.Printf("mutilogbytes: %v", logbytes)
+		log.Printf("mutilogbytes: %v\n", mutiLog)
 		if err != nil {
 			log.Println("log json marshal failed")
 		}
@@ -96,4 +136,8 @@ func GetServerIdFromHeader(h http.Header) string {
 		return ""
 	}
 	return kvs_id
+}
+func GetstypeFromHeader(h http.Header) string {
+	stype := h.Get("stype")
+	return stype
 }

@@ -8,6 +8,7 @@ require (
 )
 
 require (
+	github.com/go-cmd/cmd v1.4.1 // indirect
 	github.com/golang/protobuf v1.5.2 // indirect
 	github.com/golang/snappy v0.0.0-20180518054509-2e65f85255db // indirect
 	github.com/gorilla/websocket v1.5.0 // indirect
