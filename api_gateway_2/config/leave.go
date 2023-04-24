@@ -1,4 +1,4 @@
-package config
+package api_gateway
 
 import "net/http"
 

@@ -244,10 +244,10 @@ enum LogOp{
 }
 
 message LogArgs{
-	LogOp op= 1;
-	string cotents = 2;
-	int64 from = 3;
-	int64 to = 4;
+	LogOp Op= 1;
+	string Contents = 2;
+	int64 FromId = 3;
+	int64 ToId = 4;
 }
 
 message LogReply{

@@ -1,4 +1,4 @@
-package objects
+package api_gateway
 
 import "net/http"
 
@@ -10,7 +10,7 @@ var PeersMap = []string{
 
 var ShardPeersMap = string("127.0.0.1:8088,127.0.0.1:8089,127.0.0.1:8090")
 
-func Handler(w http.ResponseWriter, r *http.Request) {
+func ObjectHandler(w http.ResponseWriter, r *http.Request) {
 	m := r.Method
 	if m == http.MethodPut {
 		put(w, r)

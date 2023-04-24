@@ -28,12 +28,12 @@ func MakeApiGatwayClient(targetId uint64, targetAddrs string) *ApiGatwayClient {
 	return apiCli
 }
 
-func (ac *ApiGatwayClient) LogHeartBeat(contents string, from int, to int) {
+func (ac *ApiGatwayClient) LogHeartBeat(contents string, from, to int) {
 	args := &tinnraftpb.LogArgs{
-		Op:      tinnraftpb.LogOp_HeartBeat,
-		Cotents: contents,
-		From:    int64(from),
-		To:      int64(to),
+		Op:       tinnraftpb.LogOp_HeartBeat,
+		Contents: contents,
+		FromId:   int64(from),
+		ToId:     int64(to),
 	}
 
 	reply := ac.CallDoLog(args)

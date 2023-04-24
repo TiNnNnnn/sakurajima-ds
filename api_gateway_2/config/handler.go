@@ -1,4 +1,4 @@
-package config
+package api_gateway
 
 import (
 	"log"
@@ -9,7 +9,7 @@ import (
 
 var configPeersMap = string("127.0.0.1:8088,127.0.0.1:8089,127.0.0.1:8090")
 
-func Handler(w http.ResponseWriter, r *http.Request) {
+func ConfigHandler(w http.ResponseWriter, r *http.Request) {
 	m := r.Method
 
 	if m == http.MethodPut {
@@ -40,12 +40,9 @@ func Handler(w http.ResponseWriter, r *http.Request) {
 		if configOp == "query" {
 			query(w, r)
 		}
-
 		return
-
 	}
 	w.WriteHeader(http.StatusMethodNotAllowed)
-
 }
 
 func GetBucketsFromHeader(h http.Header) []int {

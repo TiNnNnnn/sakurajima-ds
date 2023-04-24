@@ -18,7 +18,12 @@ func TestTmp(t *testing.T) {
 	conf, _ := stm.Query(-1)
 	t.Logf("%v", conf)
 
-	configAddrs := []string{"127.0.0.1:10088", "127.0.0.1:10089", "127.0.0.1:10090"}
+	//configAddrs := []string{"127.0.0.1:10088", "127.0.0.1:10089", "127.0.0.1:10090"}
+	configAddrs := make(map[int]string)
+	configAddrs[0] = "127.0.0.1:10088"
+	configAddrs[0] = "127.0.0.1:10089"
+	configAddrs[0] = "127.0.0.1:10090"
+
 	sharderAddrs := make(map[int][]string)
 
 	sharderAddrs[0] = []string{"127.0.0.1:10020", "127.0.0.1:10021", "127.0.0.1:10022"}

@@ -1,4 +1,4 @@
-package objects
+package api_gateway
 
 import (
 	"fmt"
@@ -8,7 +8,6 @@ import (
 	"strconv"
 	"strings"
 )
-
 
 func put(w http.ResponseWriter, r *http.Request) {
 	if len(strings.Split(r.URL.EscapedPath(), "/")) < 4 {
@@ -30,6 +29,5 @@ func put(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		fmt.Println("err: " + err.Error())
 	}
-
 
 }

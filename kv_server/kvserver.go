@@ -24,12 +24,14 @@ var DnsMap = map[int]string{
 	0: "127.0.0.1:10010",
 	1: "127.0.0.1:10011",
 	2: "127.0.0.1:10012",
+	3: "127.0.0.1:10013",
 }
 
 var PeersMap = map[int]string{
 	0: ":10010",
 	1: ":10011",
 	2: ":10012",
+	3: ":10013",
 }
 
 const ClientTimeOut = 1 * time.Second

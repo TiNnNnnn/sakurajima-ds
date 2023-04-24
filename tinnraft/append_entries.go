@@ -136,8 +136,10 @@ func (rf *Raft) leaderSendEntries(serverId int, args *tinnraftpb.AppendEntriesAr
 			if len(args.Entries) > 0 {
 				DLog("[%v]: append entries to %v success, next %v match %v\n", rf.me, serverId, rf.nextIndex[serverId], rf.matchIndex[serverId])
 			} else {
-				rf.apiGateClient.LogHeartBeat("send heatbeat success", rf.me, serverId)
-				DLog("[%v]: term: %v | send heartbeats to %v success", rf.me, rf.currentTerm, serverId)
+				//var from = "0"
+				//var to = "1"
+				go rf.apiGateClient.LogHeartBeat("send heatbeat success", rf.me, serverId)
+				DLog("[%v]: term: %v | send heartbeats to %v success\n", rf.me, rf.currentTerm, serverId)
 			}
 
 		} else if reply.Conflict {
@@ -183,7 +185,7 @@ func (rf *Raft) leaderCommitRule() {
 				counter++
 			}
 			if counter > len(rf.peers)/2 {
-				DLog("[%v]: term %v | advance commit idx %d ", rf.me, rf.currentTerm, k)
+				DLog("[%v]: term %v | advance commit idx %d \n", rf.me, rf.currentTerm, k)
 				rf.commitIndex = k
 				rf.apply()
 				break
@@ -226,7 +228,7 @@ func (rf *Raft) HandleAppendEntries(args *tinnraftpb.AppendEntriesArgs, reply *t
 	//Candidater在选举中收到了来自其他Leader的心跳，且任期更大
 	//说明选举失败，变回Follower
 	if rf.state == Candidate {
-		DLog("[%v] term %v | election failed,become to follower from candidate", rf.me, rf.currentTerm)
+		DLog("[%v] term %v | election failed,become to follower from candidate\n", rf.me, rf.currentTerm)
 	}
 
 	rf.ChangeRaftState(Follower)

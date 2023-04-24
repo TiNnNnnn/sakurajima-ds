@@ -12,6 +12,9 @@ const Debug = true
 
 func DLog(format string, a ...interface{}) (n int, err error) {
 	if Debug {
+		if format[len(format)-1] != '\n' {
+			format += "\n"
+		}
 		log.Printf(format, a...)
 		// 获取当前函数的文件名和行号
 	}

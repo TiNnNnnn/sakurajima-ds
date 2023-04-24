@@ -1,4 +1,4 @@
-package objects
+package api_gateway
 
 import (
 	"fmt"
