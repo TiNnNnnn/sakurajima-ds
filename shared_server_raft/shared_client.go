@@ -36,6 +36,7 @@ func MakeSharedKvClient(csAddrs string) *ShardKVClient {
 		clientId:  nrand(),
 		commandId: 0,
 	}
+	//缓存最新的configserver 的分组信息
 	kvCli.config = kvCli.configCli.Query(-1)
 	return kvCli
 }
@@ -86,9 +87,10 @@ func (kvCli *ShardKVClient) DeleteBucketDatas(gid int, bucketIds []int64) string
 
 func (kvCli *ShardKVClient) SendRpcCommand(args *tinnraftpb.CommandArgs) (string, error) {
 	bucket_id := common.KeyToBucketId(args.Key)
-	log.Printf("---bucketId---: %v", bucket_id)
+	log.Printf("bucketId: %v\n", bucket_id)
+	//根据bucketId 查询分组
 	groupId := kvCli.config.Buckets[bucket_id]
-	if groupId == 0 {
+	if groupId == 0 { //当前bucket没有挂载对应group
 		tinnraft.DLog("there is no shared in charge of this bucket")
 		return "", errors.New("there is no shared in charge of this bucket")
 	}
@@ -131,7 +133,7 @@ func (kvCli *ShardKVClient) SendRpcCommand(args *tinnraftpb.CommandArgs) (string
 	} else {
 		return "", errors.New("please join the server group first")
 	}
-	return "", errors.New("Unkonw Code")
+	return "", errors.New("Unknow error")
 }
 
 func (kvCli *ShardKVClient) SendBucketRpcCommand(args *tinnraftpb.BucketOpArgs) string {

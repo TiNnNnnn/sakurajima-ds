@@ -22,10 +22,11 @@ import (
 
 type ApiLogServer struct {
 	Mu       sync.Mutex
-	BufferMu sync.RWMutex
+	CfgMu sync.Mutex
 	LogChan  chan string              //unprduce log channel
 	MutiChan chan *tinnraftpb.LogArgs // format json log channel
-	stm      *AddrStateMachine        //restore configsever,sharedserver addrs
+	cfgCond  *sync.Cond
+	stm      *AddrStateMachine //restore configsever,sharedserver addrs
 	tinnraftpb.UnimplementedRaftServiceServer
 }
 
@@ -37,8 +38,20 @@ func MakeApiGatwayServer(saddr string) *ApiLogServer {
 		MutiChan: make(chan *tinnraftpb.LogArgs),
 		stm:      MakeAddrConfigStm(addrEngine),
 	}
+
+	apiServer.cfgCond = sync.NewCond(&apiServer.CfgMu)
+
 	return apiServer
 }
+
+// func (as *ApiLogServer) SendCfgAddrs() {
+// 	for{
+// 		if <-
+// 		as.cfgCond.Wait()
+// 	}
+
+
+// }
 
 // 将不同类别的日志发送给客户端
 func (as *ApiLogServer) SendMutiLog(c *websocket.Conn) {
