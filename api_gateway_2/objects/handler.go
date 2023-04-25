@@ -4,51 +4,120 @@ import (
 	"fmt"
 	"log"
 	"net/http"
-
-	//cfg_server "sakurajima-ds/config_server"
+	api_gateway "sakurajima-ds/api_gateway_2"
 	shared_server "sakurajima-ds/shared_server_raft"
 	"strings"
 )
 
-var ConfigPeersMap = string("127.0.0.1:8088,127.0.0.1:8089,127.0.0.1:8090")
-
-func ObjectHandler(w http.ResponseWriter, r *http.Request) {
-	m := r.Method
-	if m == http.MethodPut {
-		put(w, r)
+func Handler(w http.ResponseWriter, r *http.Request, as *api_gateway.ApiLogServer) {
+	if len(strings.Split(r.URL.EscapedPath(), "/")) < 2 {
+		log.Println("wrong args in urls")
 		return
 	}
+	m := r.Method
+	op := strings.Split(r.URL.EscapedPath(), "/")[2]
+
+	if m == http.MethodPut {
+		switch op {
+		case "put":
+			put(w, r, as)
+			return
+		}
+	}
 	if m == http.MethodGet {
-		get(w, r)
+		switch op {
+		case "get":
+			get(w, r, as)
+			return
+		case "query":
+			return
+		}
+
 		return
 	}
 	w.WriteHeader(http.StatusMethodNotAllowed)
 }
 
-func put(w http.ResponseWriter, r *http.Request) {
-	if len(strings.Split(r.URL.EscapedPath(), "/")) < 3 {
-		log.Println("wrong args in urls")
+func put(w http.ResponseWriter, r *http.Request, as *api_gateway.ApiLogServer) {
+
+	key := GetKeyFromHeader(r.Header)
+	value := GetKeyFromHeader(r.Header)
+
+	if key == "" || value == "" {
+		log.Println("key or value is empty,failed")
+		w.Write([]byte("key or value is empty,failed"))
 		return
 	}
+
+	//find configServer addrs
+	curAddrsCfg, err := as.Stm.Query(-1)
+	if err != nil {
+		log.Println("query lastest log failed")
+		return
+	}
+	ConfigPeersMap := curAddrsCfg.Cfg_server_addr
+	cfgstring := addrsList2str(ConfigPeersMap)
 
 	//向sharedServer 存储数据
-	skvclient := shared_server.MakeSharedKvClient(ConfigPeersMap)
-	err := skvclient.Put("232343882", "hahahaha")
-	if err != nil {
+	skvclient := shared_server.MakeSharedKvClient(cfgstring)
+	puterr := skvclient.Put(key, value)
+	if puterr != nil {
 		fmt.Println("err: " + err.Error())
 	}
-
 }
 
-func get(w http.ResponseWriter, r *http.Request) {
-	if len(strings.Split(r.URL.EscapedPath(), "/")) < 3 {
-		log.Println("wrong args in urls")
+func get(w http.ResponseWriter, r *http.Request, as *api_gateway.ApiLogServer) {
+
+	key := GetKeyFromHeader(r.Header)
+	if key == "" {
+		log.Println("key is empty,failed")
+		w.Write([]byte("key is empty,failed"))
 		return
 	}
-	skvclient := shared_server.MakeSharedKvClient(ConfigPeersMap)
-	v, err := skvclient.Get("232343882")
+
+	//find configServer addrs
+	curAddrsCfg, err := as.Stm.Query(-1)
+	if err != nil {
+		log.Println("query lastest log failed")
+		return
+	}
+	ConfigPeersMap := curAddrsCfg.Cfg_server_addr
+	cfgstring := addrsList2str(ConfigPeersMap)
+
+	skvclient := shared_server.MakeSharedKvClient(cfgstring)
+	v, err := skvclient.Get(key)
 	if err != nil {
 		fmt.Println("err: " + err.Error())
 	}
 	log.Printf("get the value %v success", v)
+	w.Write([]byte("get value " + v + " success"))
+}
+
+
+
+func addrsList2str(ConfigPeersMap map[int]string) string {
+
+	cfgstring := ""
+	for _, addr := range ConfigPeersMap {
+		if len(addr) > 0 {
+			cfgstring += addr
+			cfgstring += ","
+		}
+	}
+
+	if cfgstring[len(cfgstring)-1] == ',' {
+		cfgstring = cfgstring[1 : len(cfgstring)-2]
+	}
+
+	return cfgstring
+}
+
+func GetKeyFromHeader(h http.Header) string {
+	key := h.Get("key")
+	return key
+}
+
+func GetValueFromHeader(h http.Header) string {
+	value := h.Get("value")
+	return value
 }

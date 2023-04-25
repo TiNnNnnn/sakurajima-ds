@@ -223,6 +223,7 @@ func (rf *Raft) HandleAppendEntries(args *tinnraftpb.AppendEntriesArgs, reply *t
 		rf.currentTerm = int(args.Term)
 		rf.votedFor = -1
 	}
+	
 	//Leader的任期小于follower的任期，直接结束
 	if args.Term < int64(rf.currentTerm) {
 		return
@@ -231,6 +232,7 @@ func (rf *Raft) HandleAppendEntries(args *tinnraftpb.AppendEntriesArgs, reply *t
 	//Candidater在选举中收到了来自其他Leader的心跳，且任期更大
 	//说明选举失败，变回Follower
 	if rf.state == Candidate {
+		rf.apiGateClient.SendLogToGate(tinnraftpb.LogOp_ToFollow, "lose election and back to follower", rf.me, rf.me, "candidate", "follower", syscall.Getpid())
 		DLog("[%v] term %v | election failed,become to follower from candidate\n", rf.me, rf.currentTerm)
 	}
 

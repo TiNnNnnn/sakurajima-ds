@@ -1,7 +1,9 @@
 package api_gateway
 
 import (
+	"fmt"
 	"log"
+	"reflect"
 	"sakurajima-ds/storage_engine"
 	"testing"
 )
@@ -21,8 +23,8 @@ func TestTmp(t *testing.T) {
 	//configAddrs := []string{"127.0.0.1:10088", "127.0.0.1:10089", "127.0.0.1:10090"}
 	configAddrs := make(map[int]string)
 	configAddrs[0] = "127.0.0.1:10088"
-	configAddrs[0] = "127.0.0.1:10089"
-	configAddrs[0] = "127.0.0.1:10090"
+	configAddrs[1] = "127.0.0.1:10089"
+	configAddrs[2] = "127.0.0.1:10090"
 
 	sharderAddrs := make(map[int][]string)
 
@@ -40,4 +42,19 @@ func TestTmp(t *testing.T) {
 
 	conf, _ = stm.Query(-1)
 	t.Logf("%v", conf)
+}
+
+func TestMapEqual(t *testing.T) {
+	configAddrs1 := make(map[int]string)
+	configAddrs1[0] = "127.0.0.1:10088"
+	configAddrs1[1] = "127.0.0.1:10089"
+	configAddrs1[2] = "127.0.0.1:10090"
+
+	configAddrs2 := make(map[int]string)
+	configAddrs2[0] = "127.0.0.1:10088"
+	configAddrs2[1] = "127.0.0.1:10089"
+	configAddrs2[2] = "127.0.0.1:10090"
+
+	ok := reflect.DeepEqual(configAddrs1, configAddrs2)
+	fmt.Printf("ansL: %v", ok)
 }

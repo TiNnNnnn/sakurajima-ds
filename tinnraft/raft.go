@@ -94,7 +94,7 @@ func MakeRaft(peers []*ClientEnd, me int, dbEngine storage_engine.KvStorage,
 	}
 	fmt.Println("-----------------------------------")
 
-	rf.apiGateClient.SendLogToGate(tinnraftpb.LogOp_StartSucess, "start configserver sucess", rf.me, rf.me, "follower", "follower", syscall.Getpid())
+	rf.apiGateClient.SendLogToGate(tinnraftpb.LogOp_StartSucess, "start server sucess", rf.me, rf.me, "follower", "follower", syscall.Getpid())
 	DLog("[%v]: term %v | the last log idx is %v", rf.me, rf.currentTerm, rf.log.GetPersistLastEntry().Index)
 
 	//开启一个协程进行选举

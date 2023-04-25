@@ -6,17 +6,20 @@ import (
 	"log"
 	"net/http"
 	"sakurajima-ds/config_server"
-	"strings"
 )
 
+func query(w http.ResponseWriter, r *http.Request, configaddrs []string) {
+	fmt.Printf("[configserver addr: %v]\n", configaddrs)
 
-func query(w http.ResponseWriter, r *http.Request) {
-	addrs := strings.Split(configPeersMap, ",")
-	fmt.Printf("[configserver addr: %v]\n", addrs)
-
-	cfgCli := config_server.MakeCfgSvrClient(99, addrs)
+	cfgCli := config_server.MakeCfgSvrClient(99, configaddrs)
 	lastConf := cfgCli.Query(-1)
-	outBytes, _ := json.Marshal(lastConf)
-	log.Println("last config: " + string(outBytes))
+	var outBytes = []byte{}
+	if lastConf != nil {
+		outBytes, _ = json.Marshal(lastConf)
+		log.Println("Last Config: " + string(outBytes))
+		w.Write([]byte("get last config sucess! config: " + string(outBytes)))
+	}
+
+	w.Write([]byte("get last config failed,all configservers have down"))
 
 }

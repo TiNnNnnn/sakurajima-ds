@@ -55,27 +55,40 @@ func (cfgCli *ConfigClient) Query(version int64) *Config {
 			slist := strings.Split(v, ",")
 			config.Groups[int(k)] = slist
 		}
+	} else {
+		tinnraft.DLog("query config reply failed , all configserver down")
+		return nil
 	}
 	return config
 }
 
-func (cfgCli *ConfigClient) Join(servers map[int64]string) {
+func (cfgCli *ConfigClient) Join(servers map[int64]string) bool {
 	confArgs := &tinnraftpb.ConfigArgs{
 		OpType:  tinnraftpb.ConfigOpType_Join,
 		Servers: servers,
 	}
 	confReply := cfgCli.CallDoConfig(confArgs)
-	tinnraft.DLog("join config reply ok", confReply.ErrMsg)
+	if confReply == nil {
+		tinnraft.DLog("join config reply failed , all configserver down")
+		return false
+	}
+	tinnraft.DLog("join config reply ok")
+	return true
 }
 
-func (cfgCli *ConfigClient) Move(bucketId int, groupId int) {
+func (cfgCli *ConfigClient) Move(bucketId int, groupId int) bool {
 	confArgs := &tinnraftpb.ConfigArgs{
 		OpType:   tinnraftpb.ConfigOpType_Move,
 		BucketId: int64(bucketId),
 		GroupId:  int64(groupId),
 	}
 	confReply := cfgCli.CallDoConfig(confArgs)
-	tinnraft.DLog("move bucket reply ok" + confReply.ErrMsg)
+	if confReply == nil {
+		tinnraft.DLog("move bucket reply failed,move bid %v to group %v failed , all configserver down", bucketId, groupId)
+		return false
+	}
+	tinnraft.DLog("move bucket reply ok,move bid %v to group %v", bucketId, groupId)
+	return true
 }
 
 func (cfgCli *ConfigClient) Leave(gids []int64) {
@@ -84,6 +97,10 @@ func (cfgCli *ConfigClient) Leave(gids []int64) {
 		GroupIds: gids,
 	}
 	resp := cfgCli.CallDoConfig(confReq)
+	if resp == nil {
+		tinnraft.DLog("leave config reply failed , all configserver down")
+		return
+	}
 	tinnraft.DLog("leave cfg resp ok" + resp.ErrMsg)
 }
 

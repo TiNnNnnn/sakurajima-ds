@@ -11,6 +11,7 @@ import (
 	"os"
 	"os/exec"
 	"sakurajima-ds/common"
+
 	"sakurajima-ds/storage_engine"
 	"sakurajima-ds/tinnraftpb"
 	"strconv"
@@ -28,7 +29,7 @@ type ApiLogServer struct {
 	MutiChan chan *tinnraftpb.LogArgs // format json log channel
 	StopChan chan bool
 	cfgCond  *sync.Cond
-	stm      *AddrStateMachine //restore configsever,sharedserver addrs
+	Stm      *AddrStateMachine //restore configsever,sharedserver addrs
 	tinnraftpb.UnimplementedRaftServiceServer
 }
 
@@ -39,7 +40,7 @@ func MakeApiGatwayServer(saddr string) *ApiLogServer {
 		LogChan:  make(chan string),
 		MutiChan: make(chan *tinnraftpb.LogArgs, 1024),
 		StopChan: make(chan bool),
-		stm:      MakeAddrConfigStm(addrEngine),
+		Stm:      MakeAddrConfigStm(addrEngine),
 	}
 
 	apiServer.cfgCond = sync.NewCond(&apiServer.CfgMu)
@@ -51,14 +52,37 @@ func MakeApiGatwayServer(saddr string) *ApiLogServer {
 func (as *ApiLogServer) SendMutiLog(c *websocket.Conn) {
 	for {
 		mutiLog := <-as.MutiChan
-
 		sType := common.GetNameBypId(int(mutiLog.Pid))
+		groupId := 0
 
 		if sType == "cfgserver" {
 			sType = "configserver"
+		} else if sType == "sharedserver" {
+			curAddrCfg, _ := as.Stm.Query(-1)
+			saddrs := curAddrCfg.Shared_server_addr
+
+			addr := ""
+			for i := 0; i < 15; i++ {
+				addr = common.GetGroupIdBypId2(int(mutiLog.Pid), "./../../outp")
+				if addr != "" {
+					break
+				}
+			}
+			if addr == "" {
+				return
+			}
+
+			for gid, addrs := range saddrs {
+				for _, adr := range addrs {
+					if adr == addr {
+						groupId = gid
+						break
+					}
+				}
+			}
 		}
 
-		log.Printf("mutilogbytes: {%v %v %v %v %v %v %v}\n", mutiLog.Op, mutiLog.Contents, mutiLog.FromId, mutiLog.ToId, mutiLog.PreState, mutiLog.CurState, sType)
+		log.Printf("mutilogbytes: {%v %v %v %v %v %v %v %v}\n", mutiLog.Op, mutiLog.Contents, mutiLog.FromId, mutiLog.ToId, mutiLog.PreState, mutiLog.CurState, sType, groupId)
 
 		hblog := HBLog{
 			Logtype:  mutiLog.Op.String(),
@@ -68,6 +92,7 @@ func (as *ApiLogServer) SendMutiLog(c *websocket.Conn) {
 			PreState: mutiLog.PreState,
 			CurState: mutiLog.CurState,
 			SvrType:  sType,
+			GroupId:  groupId,
 			Time:     mutiLog.Time,
 		}
 
@@ -179,17 +204,24 @@ func (as *ApiLogServer) StartConfigServer(w http.ResponseWriter, r *http.Request
 	for i, addr := range cfgAddrs {
 		cfgAddrMap[i] = addr
 	}
-	curConfig, err := as.stm.Query(-1)
+
+	curConfig, err := as.Stm.Query(-1)
 	if err != nil {
 		fmt.Println("read lastest config failed")
 	}
 
 	//更新 configaddrs数据 并持久化
 	newConfig := &AddrConfig{
-		Cfg_server_addr: cfgAddrMap,
-		CurVerison:      curConfig.CurVerison + 1,
+		Shared_server_addr: curConfig.Shared_server_addr,
+		Cfg_server_addr:    cfgAddrMap,
+		CurVerison:         curConfig.CurVerison + 1,
 	}
-	as.stm.Update(*newConfig)
+	if !IsEqual(&curConfig, newConfig) {
+		as.Stm.Update(*newConfig)
+	}
+
+	Config, _ := as.Stm.Query(-1)
+	ShowCurConfig(&Config)
 
 	//启动configserver
 	fmt.Println("START: [./../../output/cfgserver " + sid + " " + cfg_addrs + "]")
@@ -244,8 +276,31 @@ func (as *ApiLogServer) StartSharedServer(w http.ResponseWriter, r *http.Request
 		return
 	}
 
+	curConfig, err := as.Stm.Query(-1)
+	if err != nil {
+		fmt.Println("read lastest config failed")
+	}
+
+	newGroupId, _ := strconv.Atoi(gid)
+	newsharedConfig := CopySharedCOnfig(curConfig.Shared_server_addr)
+	newsharedConfig[newGroupId] = sharedAddrs
+
+	//更新 sharedaddrs数据 并持久化
+	newConfig := &AddrConfig{
+		Shared_server_addr: newsharedConfig,
+		Cfg_server_addr:    curConfig.Cfg_server_addr,
+		CurVerison:         curConfig.CurVerison + 1,
+	}
+
+	if !IsEqual(&curConfig, newConfig) {
+		as.Stm.Update(*newConfig)
+	}
+
+	Config, _ := as.Stm.Query(-1)
+	ShowCurConfig(&Config)
+
 	//启动sharedserver
-	fmt.Println("START: [./../../output/sharedserver " + sid + " " + gid + " " + cfg_addrs + " " + shared_addrs + "]")
+	fmt.Println("START: [./../../output/sharedserver " + sid + " " + gid + " [" + cfg_addrs + "] [" + shared_addrs + "]]")
 	cmd := exec.Command("./../../output/sharedserver", sid, gid, cfg_addrs, shared_addrs)
 
 	cmd.Stdin = os.Stdin
@@ -264,8 +319,8 @@ func (as *ApiLogServer) StartSharedServer(w http.ResponseWriter, r *http.Request
 		}
 	}()
 
-	err := cmd.Run()
-	if err != nil {
+	runErr := cmd.Run()
+	if runErr != nil {
 		fmt.Println("failed to begin the sharedserver!")
 	}
 }
@@ -274,8 +329,9 @@ func (as *ApiLogServer) StopServer(w http.ResponseWriter, r *http.Request) {
 
 	stype := GetstypeFromHeader(r.Header)
 	sid, _ := strconv.Atoi(GetServerIdFromHeader(r.Header))
+	gid, _ := strconv.Atoi(GetGroupIdFromHeader(r.Header))
 
-	addrs, err := as.stm.Query(-1)
+	addrs, err := as.Stm.Query(-1)
 	if err != nil {
 		fmt.Println("get the lastest log failed; err: " + err.Error())
 		return
@@ -285,7 +341,7 @@ func (as *ApiLogServer) StopServer(w http.ResponseWriter, r *http.Request) {
 	if stype == "configserver" {
 		addr = addrs.Cfg_server_addr[sid]
 	} else if stype == "sharedserver" {
-		addr = addrs.Shared_server_addr[0][sid]
+		addr = addrs.Shared_server_addr[gid][sid]
 	}
 
 	port := strings.Split(addr, ":")[1]
@@ -324,6 +380,7 @@ func (as *ApiLogServer) StopServer(w http.ResponseWriter, r *http.Request) {
 	w.Write([]byte("kill proc " + stype + ":" + strconv.Itoa(sid) + " with port " + port + " success"))
 
 }
+
 
 func GetServerIdFromHeader(h http.Header) string {
 	kvs_id := h.Get("s_id")
