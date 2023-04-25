@@ -3,6 +3,7 @@ package tinnraft
 import (
 	"context"
 	"sakurajima-ds/tinnraftpb"
+	"syscall"
 
 	_ "google.golang.org/grpc/peer"
 )
@@ -133,12 +134,14 @@ func (rf *Raft) leaderSendEntries(serverId int, args *tinnraftpb.AppendEntriesAr
 			rf.nextIndex[serverId] = max(rf.nextIndex[serverId], next)
 			rf.matchIndex[serverId] = max(rf.matchIndex[serverId], match)
 
+			pid := syscall.Getpid()
 			if len(args.Entries) > 0 {
+
+				go rf.apiGateClient.SendLogToGate(tinnraftpb.LogOp_AppendEntries, "append entries success", rf.me, serverId, "leader", "leader", pid)
 				DLog("[%v]: append entries to %v success, next %v match %v\n", rf.me, serverId, rf.nextIndex[serverId], rf.matchIndex[serverId])
 			} else {
-				//var from = "0"
-				//var to = "1"
-				go rf.apiGateClient.LogHeartBeat("send heatbeat success", rf.me, serverId)
+
+				go rf.apiGateClient.SendLogToGate(tinnraftpb.LogOp_HeartBeat, "send heatbeat success", rf.me, serverId, "leader", "leader", pid)
 				DLog("[%v]: term: %v | send heartbeats to %v success\n", rf.me, rf.currentTerm, serverId)
 			}
 

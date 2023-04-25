@@ -4,6 +4,7 @@ import (
 	"math/rand"
 	"sakurajima-ds/tinnraftpb"
 	"sync"
+	"syscall"
 	"time"
 )
 
@@ -15,12 +16,13 @@ func (rf *Raft) leaderElection() {
 
 	rf.resetElectionTimer()
 	rf.persist()
-	
+
 	term := rf.currentTerm
 	voteCounter := 1
 
 	candiate_lastLog := rf.log.GetPersistLastEntry()
 
+	rf.apiGateClient.SendLogToGate(tinnraftpb.LogOp_StartElection, "follow start election", rf.me, rf.me, "follower", "candidate", syscall.Getpid())
 	DLog("[%v]: term: %v | start leader election\n", rf.me, rf.currentTerm)
 
 	args := tinnraftpb.RequestVoteArgs{
@@ -34,7 +36,7 @@ func (rf *Raft) leaderElection() {
 	var becomeLeader sync.Once
 	//向集群内其他server发送投票请求
 	for _, peer := range rf.peers {
-		if int(peer.id) != rf.me {
+		if peer.id != uint64(rf.me) {
 			go rf.candidateRequestVote(int(peer.id), &args, &voteCounter, &becomeLeader)
 		}
 	}

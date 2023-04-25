@@ -6,12 +6,28 @@ import (
 	"fmt"
 	"io"
 	"io/ioutil"
+	"log"
 	"os"
 	"strconv"
 	"strings"
 
 	"github.com/go-cmd/cmd"
+	"github.com/shirou/gopsutil/process"
 )
+
+func GetNameBypId(pid int) string {
+	pn, err := process.NewProcess(int32(pid))
+	if err != nil {
+		log.Println("process.NewProcess failed")
+		return ""
+	}
+	pName, err := pn.Name()
+	if err != nil {
+		log.Print("pn.Name() failed")
+		return ""
+	}
+	return pName
+}
 
 // 查找指定进程
 func IsProcessExist(port string) bool {
@@ -21,9 +37,17 @@ func IsProcessExist(port string) bool {
 	fmt.Println(c.Status().Stdout)
 
 	//out := c.Status().Stdout
+	if len(c.Status().Stdout) == 0 {
+		fmt.Printf("can't find proc with port %v", port)
+		return false
+	}
 
-	
+	//fmt.Println(fields[6])
 	fields := strings.Fields(c.Status().Stdout[0])
+	if len(fields) == 0 {
+		fmt.Printf("can't find proc with port %v", port)
+		return false
+	}
 
 	fmt.Println(fields[6])
 

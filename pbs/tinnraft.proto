@@ -238,9 +238,26 @@ message MetaReply{
 
 enum LogOp{
 	All = 0;
+
+	//心跳
 	HeartBeat = 1;
+
 	AppendEntries = 2;
-	RequestVote = 3;
+
+	//Leader选举
+	StartElection = 3;
+	RequestVote = 4;
+	RecvVote = 5;
+	Vote = 6;
+
+	//状态转换
+	ToCandiate = 7;
+	ToFollow = 8;
+	ToLeader = 9;
+
+	//启动成功
+	StartSucess = 10;
+
 }
 
 message LogArgs{
@@ -248,6 +265,10 @@ message LogArgs{
 	string Contents = 2;
 	int64 FromId = 3;
 	int64 ToId = 4;
+	string preState = 5; //之前的状态
+	string curState = 6; //当前状态
+	int64 Time = 7;
+	int64 pid = 8;
 }
 
 message LogReply{

@@ -6,6 +6,7 @@ import (
 	"log"
 	"math/big"
 	"sakurajima-ds/tinnraftpb"
+	"time"
 )
 
 type ApiGatwayClient struct {
@@ -28,12 +29,21 @@ func MakeApiGatwayClient(targetId uint64, targetAddrs string) *ApiGatwayClient {
 	return apiCli
 }
 
-func (ac *ApiGatwayClient) LogHeartBeat(contents string, from, to int) {
+// 请求投票日志
+func (ac *ApiGatwayClient) SendLogToGate(logType tinnraftpb.LogOp, contents string, from, to int, preSt, curSt string, pid int) {
+
+	now := time.Now()
+	nowTime := now.UnixNano() / 1e6
+
 	args := &tinnraftpb.LogArgs{
-		Op:       tinnraftpb.LogOp_HeartBeat,
+		Op:       logType,
 		Contents: contents,
 		FromId:   int64(from),
 		ToId:     int64(to),
+		PreState: preSt,
+		CurState: curSt,
+		Time:     nowTime,
+		Pid:      int64(pid),
 	}
 
 	reply := ac.CallDoLog(args)

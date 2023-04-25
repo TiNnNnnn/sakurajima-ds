@@ -23,3 +23,15 @@ func CopyGroup(groups map[int][]string) map[int][]string {
 	}
 	return newGroup
 }
+
+// HeartBeat
+type HBLog struct {
+	Logtype  string
+	Content  string
+	From     int
+	To       int
+	PreState string
+	CurState string
+	SvrType  string 
+	Time     int64
+}

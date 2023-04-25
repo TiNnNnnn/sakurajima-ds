@@ -10,6 +10,7 @@ import (
 	"net/http"
 	"os"
 	"os/exec"
+	"sakurajima-ds/common"
 	"sakurajima-ds/storage_engine"
 	"sakurajima-ds/tinnraftpb"
 	"strconv"
@@ -22,9 +23,10 @@ import (
 
 type ApiLogServer struct {
 	Mu       sync.Mutex
-	CfgMu sync.Mutex
+	CfgMu    sync.Mutex
 	LogChan  chan string              //unprduce log channel
 	MutiChan chan *tinnraftpb.LogArgs // format json log channel
+	StopChan chan bool
 	cfgCond  *sync.Cond
 	stm      *AddrStateMachine //restore configsever,sharedserver addrs
 	tinnraftpb.UnimplementedRaftServiceServer
@@ -35,7 +37,8 @@ func MakeApiGatwayServer(saddr string) *ApiLogServer {
 	addrEngine := storage_engine.EngineFactory("leveldb", "./saddr_data/"+"api_server/")
 	apiServer := &ApiLogServer{
 		LogChan:  make(chan string),
-		MutiChan: make(chan *tinnraftpb.LogArgs),
+		MutiChan: make(chan *tinnraftpb.LogArgs, 1024),
+		StopChan: make(chan bool),
 		stm:      MakeAddrConfigStm(addrEngine),
 	}
 
@@ -44,29 +47,37 @@ func MakeApiGatwayServer(saddr string) *ApiLogServer {
 	return apiServer
 }
 
-// func (as *ApiLogServer) SendCfgAddrs() {
-// 	for{
-// 		if <-
-// 		as.cfgCond.Wait()
-// 	}
-
-
-// }
-
 // 将不同类别的日志发送给客户端
 func (as *ApiLogServer) SendMutiLog(c *websocket.Conn) {
 	for {
 		mutiLog := <-as.MutiChan
 
-		logbytes, err := json.Marshal(mutiLog)
-		//log.Printf("mutilogbytes: {%v %v %s %s}\n", mutiLog.Op, mutiLog.Contents, mutiLog.FromId, mutiLog.ToId)
-		log.Printf("mutiLog: %v", mutiLog)
-		if err != nil {
-			log.Println("log json marshal failed")
+		sType := common.GetNameBypId(int(mutiLog.Pid))
+
+		if sType == "cfgserver" {
+			sType = "configserver"
 		}
-		as.Mu.Lock()
-		c.WriteMessage(1, logbytes)
-		as.Mu.Unlock()
+
+		log.Printf("mutilogbytes: {%v %v %v %v %v %v %v}\n", mutiLog.Op, mutiLog.Contents, mutiLog.FromId, mutiLog.ToId, mutiLog.PreState, mutiLog.CurState, sType)
+
+		hblog := HBLog{
+			Logtype:  mutiLog.Op.String(),
+			Content:  mutiLog.Contents,
+			From:     int(mutiLog.FromId),
+			To:       int(mutiLog.ToId),
+			PreState: mutiLog.PreState,
+			CurState: mutiLog.CurState,
+			SvrType:  sType,
+			Time:     mutiLog.Time,
+		}
+
+		logBytes, _ := json.Marshal(hblog)
+
+		err := c.WriteMessage(1, logBytes)
+		if err != nil {
+			log.Printf("writemessgae err: %v", err.Error())
+			break
+		}
 	}
 }
 
@@ -113,7 +124,7 @@ func (as *ApiLogServer) DoLog(ctx context.Context, args *tinnraftpb.LogArgs) (*t
 	}
 }
 
-// 启动KvServer
+// 启动KvServer test only
 func (as *ApiLogServer) StartKvServer(w http.ResponseWriter, r *http.Request) {
 
 	sid := GetServerIdFromHeader(r.Header)
@@ -172,6 +183,7 @@ func (as *ApiLogServer) StartConfigServer(w http.ResponseWriter, r *http.Request
 	if err != nil {
 		fmt.Println("read lastest config failed")
 	}
+
 	//更新 configaddrs数据 并持久化
 	newConfig := &AddrConfig{
 		Cfg_server_addr: cfgAddrMap,
@@ -192,6 +204,7 @@ func (as *ApiLogServer) StartConfigServer(w http.ResponseWriter, r *http.Request
 	go func() {
 		for {
 			l, err := out.ReadString('\n')
+			//out.Grow(1024)
 			if err != nil && err.Error() != "EOF" {
 				log.Print(err)
 				continue
@@ -260,7 +273,7 @@ func (as *ApiLogServer) StartSharedServer(w http.ResponseWriter, r *http.Request
 func (as *ApiLogServer) StopServer(w http.ResponseWriter, r *http.Request) {
 
 	stype := GetstypeFromHeader(r.Header)
-	sid, _ := strconv.Atoi(GetstypeFromHeader(r.Header))
+	sid, _ := strconv.Atoi(GetServerIdFromHeader(r.Header))
 
 	addrs, err := as.stm.Query(-1)
 	if err != nil {
@@ -281,9 +294,16 @@ func (as *ApiLogServer) StopServer(w http.ResponseWriter, r *http.Request) {
 	<-c.Start()
 	fmt.Printf("nestat result: %v", c.Status().Stdout)
 
+	if len(c.Status().Stdout) == 0 {
+		fmt.Printf("can't find proc with port %v", port)
+		w.Write([]byte("can't find proc with port " + port))
+		return
+	}
+
 	fields := strings.Fields(c.Status().Stdout[0])
 	if len(fields) == 0 {
 		fmt.Printf("can't find proc with port %v", port)
+		w.Write([]byte("can't find proc with port " + port))
 		return
 	}
 
@@ -296,9 +316,12 @@ func (as *ApiLogServer) StopServer(w http.ResponseWriter, r *http.Request) {
 	out, err := prc.Output()
 	if err != nil {
 		fmt.Printf("kill proc with port %v failed", port)
+		w.Write([]byte("kill proc " + stype + ":" + strconv.Itoa(sid) + "with port " + port + " failed"))
 		panic(err)
 	}
+
 	fmt.Printf("kill proc with port %v success! %v", port, string(out))
+	w.Write([]byte("kill proc " + stype + ":" + strconv.Itoa(sid) + " with port " + port + " success"))
 
 }
 
