@@ -29,22 +29,13 @@ func MakeApiGatwayClient(targetId uint64, targetAddrs string) *ApiGatwayClient {
 	return apiCli
 }
 
-// 请求投票日志
-func (ac *ApiGatwayClient) SendLogToGate(logType tinnraftpb.LogOp, contents string, from, to int, preSt, curSt string, pid int) {
+// raft层日志
+func (ac *ApiGatwayClient) SendLogToGate(args *tinnraftpb.LogArgs) {
 
 	now := time.Now()
 	nowTime := now.UnixNano() / 1e6
 
-	args := &tinnraftpb.LogArgs{
-		Op:       logType,
-		Contents: contents,
-		FromId:   int64(from),
-		ToId:     int64(to),
-		PreState: preSt,
-		CurState: curSt,
-		Time:     nowTime,
-		Pid:      int64(pid),
-	}
+	args.Time = nowTime
 
 	reply := ac.CallDoLog(args)
 	if reply == nil {
@@ -52,9 +43,11 @@ func (ac *ApiGatwayClient) SendLogToGate(logType tinnraftpb.LogOp, contents stri
 	}
 	if !reply.Success {
 		log.Println("call dolog Rpc failed")
+		return
 	}
 	log.Println("call dolog Rpc success")
 }
+
 
 // 将log发送给api_server
 func (ac *ApiGatwayClient) CallDoLog(args *tinnraftpb.LogArgs) *tinnraftpb.LogReply {

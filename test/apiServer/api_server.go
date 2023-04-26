@@ -10,6 +10,7 @@ import (
 	api_gateway "sakurajima-ds/api_gateway_2"
 	config "sakurajima-ds/api_gateway_2/config"
 	objects "sakurajima-ds/api_gateway_2/objects"
+	"sakurajima-ds/common"
 	"sakurajima-ds/tinnraftpb"
 
 	"github.com/gorilla/websocket"
@@ -38,11 +39,12 @@ func startshared(w http.ResponseWriter, r *http.Request) {
 }
 
 func handleStop(w http.ResponseWriter, r *http.Request) {
+	setupCORS(&w)
 	apiSvr.StopServer(w, r)
 }
 
 func handleStart(w http.ResponseWriter, r *http.Request) {
-
+	setupCORS(&w)
 	m := r.Method
 	if m == http.MethodPut {
 		serverType := api_gateway.GetstypeFromHeader(r.Header)
@@ -85,6 +87,7 @@ func handleLog(w http.ResponseWriter, r *http.Request) {
 }
 
 func handleClose(w http.ResponseWriter, r *http.Request) {
+	setupCORS(&w)
 	apiSvr.StopChan <- true
 }
 
@@ -106,15 +109,24 @@ func LogRpcServer() {
 }
 
 func ObjectHandler(w http.ResponseWriter, r *http.Request) {
+	setupCORS(&w)
 	objects.Handler(w, r, apiSvr)
 }
 
 func ConfigHandler(w http.ResponseWriter, r *http.Request) {
+	setupCORS(&w)
 	config.Handler(w, r, apiSvr)
 }
 
 func handleClear(w http.ResponseWriter, r *http.Request) {
+	setupCORS(&w)
 	apiSvr.ClearDates(w, r)
+}
+
+func setupCORS(w *http.ResponseWriter) {
+	(*w).Header().Set("Access-Control-Allow-Origin", "*")
+	(*w).Header().Set("Access-Control-Allow-Methods", "*")
+	(*w).Header().Set("Access-Control-Allow-Headers", "*")
 }
 
 func main() {
@@ -127,7 +139,9 @@ func main() {
 		fmt.Println("-------------------------------")
 		return
 	}
-	
+
+	common.Getstartlogo()
+
 	gateAddr := "0.0.0.0:10055"
 	if len(os.Args) == 2 {
 		gateAddr = os.Args[1]
@@ -143,7 +157,7 @@ func main() {
 	go LogRpcServer()
 
 	log.Println("api gateway begining working...")
-	log.Printf("server mutiLog listen on: %v", gateAddr)
+	log.Printf("api_gatway listen on: %v", gateAddr)
 	flag.Parse()
 	log.SetFlags(0)
 

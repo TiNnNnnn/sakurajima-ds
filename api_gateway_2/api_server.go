@@ -19,18 +19,18 @@ import (
 	"strings"
 	"sync"
 
-	"github.com/go-cmd/cmd"
 	"github.com/gorilla/websocket"
 )
 
 type ApiLogServer struct {
-	Mu       sync.Mutex
-	CfgMu    sync.Mutex
-	LogChan  chan string              //unprduce log channel
-	MutiChan chan *tinnraftpb.LogArgs // format json log channel
-	StopChan chan bool
-	cfgCond  *sync.Cond
-	Stm      *AddrStateMachine //restore configsever,sharedserver addrs
+	Mu              sync.Mutex
+	CfgMu           sync.Mutex
+	LogChan         chan string              //unprduce log channel
+	MutiChan        chan *tinnraftpb.LogArgs // format json log channel for raft layel
+	MutiChanService chan *tinnraftpb.LogArgs // format json log channel for raft layel
+	StopChan        chan bool
+	cfgCond         *sync.Cond
+	Stm             *AddrStateMachine //restore configsever,sharedserver addrs
 	tinnraftpb.UnimplementedRaftServiceServer
 }
 
@@ -38,10 +38,11 @@ func MakeApiGatwayServer(saddr string) *ApiLogServer {
 
 	addrEngine := storage_engine.EngineFactory("leveldb", "./saddr_data/"+"api_server/")
 	apiServer := &ApiLogServer{
-		LogChan:  make(chan string),
-		MutiChan: make(chan *tinnraftpb.LogArgs, 1024),
-		StopChan: make(chan bool),
-		Stm:      MakeAddrConfigStm(addrEngine),
+		LogChan:         make(chan string),
+		MutiChan:        make(chan *tinnraftpb.LogArgs, 1024),
+		MutiChanService: make(chan *tinnraftpb.LogArgs, 1024),
+		StopChan:        make(chan bool),
+		Stm:             MakeAddrConfigStm(addrEngine),
 	}
 
 	apiServer.cfgCond = sync.NewCond(&apiServer.CfgMu)
@@ -53,8 +54,11 @@ func MakeApiGatwayServer(saddr string) *ApiLogServer {
 func (as *ApiLogServer) SendMutiLog(c *websocket.Conn) {
 	for {
 		mutiLog := <-as.MutiChan
+
+		//根据pid获取节点类型
 		sType := common.GetNameBypId(int(mutiLog.Pid))
-		groupId := 0
+
+		groupId := -1
 
 		if sType == "cfgserver" {
 			sType = "configserver"
@@ -63,7 +67,7 @@ func (as *ApiLogServer) SendMutiLog(c *websocket.Conn) {
 			saddrs := curAddrCfg.Shared_server_addr
 
 			addr := ""
-			for i := 0; i < 15; i++ {
+			for i := 0; i < 15; i++ { //warning: netstat has timeout dangerours
 				time.Sleep(1e6)
 				addr = common.GetGroupIdBypId(int(mutiLog.Pid))
 				if addr != "" {
@@ -84,18 +88,21 @@ func (as *ApiLogServer) SendMutiLog(c *websocket.Conn) {
 			}
 		}
 
-		log.Printf("mutilogbytes: {%v %v %v %v %v %v %v %v}\n", mutiLog.Op, mutiLog.Contents, mutiLog.FromId, mutiLog.ToId, mutiLog.PreState, mutiLog.CurState, sType, groupId)
+		log.Printf("mutilogbytes: {%v %v %v %v %v %v %v %v %v %v}\n",
+			mutiLog.Op, mutiLog.Contents, mutiLog.FromId, mutiLog.ToId, mutiLog.PreState, mutiLog.CurState, sType, groupId, mutiLog.Term, mutiLog.Layer)
 
 		hblog := HBLog{
 			Logtype:  mutiLog.Op.String(),
 			Content:  mutiLog.Contents,
-			From:     int(mutiLog.FromId),
-			To:       int(mutiLog.ToId),
+			From:     mutiLog.FromId,
+			To:       mutiLog.ToId,
 			PreState: mutiLog.PreState,
 			CurState: mutiLog.CurState,
 			SvrType:  sType,
 			GroupId:  groupId,
+			Term:     mutiLog.Term,
 			Time:     mutiLog.Time,
+			Layer:    RAFT,
 		}
 
 		logBytes, _ := json.Marshal(hblog)
@@ -337,6 +344,12 @@ func (as *ApiLogServer) StopServer(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	//fmt.Println(addrs)
+	if sid > len(addrs.Cfg_server_addr) {
+		w.Write([]byte("wrong sid"))
+		return
+	}
+
 	var addr = ""
 	if stype == "configserver" {
 		addr = addrs.Cfg_server_addr[sid]
@@ -344,36 +357,30 @@ func (as *ApiLogServer) StopServer(w http.ResponseWriter, r *http.Request) {
 		addr = addrs.Shared_server_addr[gid][sid]
 	}
 
+	if addr == "" {
+		w.Write([]byte("no server found!"))
+		return
+	}
 	port := strings.Split(addr, ":")[1]
 
-	c := cmd.NewCmd("bash", "-c", "netstat -nltp |grep "+port)
-	<-c.Start()
-	fmt.Printf("nestat result: %v", c.Status().Stdout)
-
-	if len(c.Status().Stdout) == 0 {
-		fmt.Printf("can't find proc with port %v", port)
-		w.Write([]byte("can't find proc with port " + port))
-		return
+	pid := ""
+	for i := 0; i < 15; i++ {
+		time.Sleep(1e7)
+		pid = common.GetPidByport(port)
+		if pid != "" {
+			break
+		}
 	}
 
-	fields := strings.Fields(c.Status().Stdout[0])
-	if len(fields) == 0 {
-		fmt.Printf("can't find proc with port %v", port)
-		w.Write([]byte("can't find proc with port " + port))
-		return
-	}
+	time.Sleep(1e7)
 
-	//取出进程pid
-	pid := strings.Split(fields[6], "/")[0]
-
-	//log.Printf("get the process %v %v with pid %v",)
 	//杀死进程
 	prc := exec.Command("kill", "-9", pid)
 	out, err := prc.Output()
 	if err != nil {
 		fmt.Printf("kill proc with port %v failed", port)
 		w.Write([]byte("kill proc " + stype + ":" + strconv.Itoa(sid) + "with port " + port + " failed"))
-		panic(err)
+		return
 	}
 
 	fmt.Printf("kill proc with port %v success! %v", port, string(out))

@@ -30,3 +30,13 @@
 08:22:14.697493 table@compaction committed F-1 S-300B Ke·0 D·6 T·8.49399ms
 08:22:14.697589 table@remove removed @5
 08:22:14.697623 table@remove removed @2
+=============== Apr 26, 2023 (CST) ===============
+17:08:42.326983 log@legend F·NumFile S·FileSize N·Entry C·BadEntry B·BadBlock Ke·KeyError D·DroppedEntry L·Level Q·SeqNum T·TimeElapsed
+17:08:42.329373 version@stat F·[0 1] S·249B[0B 249B] Sc·[0.00 0.00]
+17:08:42.329392 db@open opening
+17:08:42.329444 journal@recovery F·1
+17:08:42.329749 journal@recovery recovering @6
+17:08:42.340283 memdb@flush created L0@9 N·10 S·333B "\x11\x11\x19..\x00\x00\x00,v12":"\x19I,v13"
+17:08:42.343295 version@stat F·[1 1] S·582B[333B 249B] Sc·[0.25 0.00]
+17:08:42.357461 db@janitor F·4 G·0
+17:08:42.357523 db@open done T·28.122127ms

@@ -17,13 +17,14 @@ import (
 )
 
 type ConfigServer struct {
-	mu          sync.RWMutex
-	dead        int32
-	tinnRf      *tinnraft.Raft
-	applyCh     chan *tinnraftpb.ApplyMsg
-	stm         ConfigStateMachine
-	notifyChans map[int]chan *tinnraftpb.ConfigReply
-	stopApplyCh chan interface{}
+	mu            sync.RWMutex
+	dead          int32
+	tinnRf        *tinnraft.Raft
+	applyCh       chan *tinnraftpb.ApplyMsg
+	stm           ConfigStateMachine
+	notifyChans   map[int]chan *tinnraftpb.ConfigReply
+	stopApplyCh   chan interface{}
+	apiGateClient *api_gateway.ApiGatwayClient
 
 	tinnraftpb.UnimplementedRaftServiceServer
 }
@@ -48,11 +49,12 @@ func MakeConfigServer(peerMaps map[int]string, serverId int) *ConfigServer {
 	tinnRf := tinnraft.MakeRaft(clientEnds, serverId, logEngine, applyCh, apigateclient)
 
 	configServer := &ConfigServer{
-		dead:        0,
-		applyCh:     applyCh,
-		notifyChans: make(map[int]chan *tinnraftpb.ConfigReply),
-		stm:         *MakeConfigStm(Configengine),
-		tinnRf:      tinnRf,
+		dead:          0,
+		applyCh:       applyCh,
+		notifyChans:   make(map[int]chan *tinnraftpb.ConfigReply),
+		stm:           *MakeConfigStm(Configengine),
+		tinnRf:        tinnRf,
+		apiGateClient: apigateclient,
 	}
 
 	configServer.stopApplyCh = make(chan interface{})

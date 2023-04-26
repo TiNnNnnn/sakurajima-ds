@@ -2,7 +2,9 @@ package tinnraft
 
 import (
 	"context"
+	"encoding/json"
 	"sakurajima-ds/tinnraftpb"
+	"strconv"
 	"syscall"
 
 	_ "google.golang.org/grpc/peer"
@@ -134,14 +136,38 @@ func (rf *Raft) leaderSendEntries(serverId int, args *tinnraftpb.AppendEntriesAr
 			rf.nextIndex[serverId] = max(rf.nextIndex[serverId], next)
 			rf.matchIndex[serverId] = max(rf.matchIndex[serverId], match)
 
-			pid := syscall.Getpid()
 			if len(args.Entries) > 0 {
+				//LOG
+				pid := syscall.Getpid()
+				ent, _ := json.Marshal(args.Entries)
+				raftlog := &tinnraftpb.LogArgs{
+					Op:       tinnraftpb.LogOp_AppendEntries,
+					Contents: "append entries success,entreis:" + string(ent),
+					FromId:   strconv.Itoa(rf.me),
+					ToId:     strconv.Itoa(serverId),
+					CurState: "leader",
+					Pid:      int64(pid),
+					Term:     int64(rf.currentTerm),
+					Layer:    tinnraftpb.LogLayer_RAFT,
+				}
+				rf.apiGateClient.SendLogToGate(raftlog)
 
-				go rf.apiGateClient.SendLogToGate(tinnraftpb.LogOp_AppendEntries, "append entries success", rf.me, serverId, "leader", "leader", pid)
 				DLog("[%v]: append entries to %v success, next %v match %v\n", rf.me, serverId, rf.nextIndex[serverId], rf.matchIndex[serverId])
 			} else {
+				//LOG
+				pid := syscall.Getpid()
+				raftlog := &tinnraftpb.LogArgs{
+					Op:       tinnraftpb.LogOp_HeartBeat,
+					Contents: "send heatbeat success",
+					FromId:   strconv.Itoa(rf.me),
+					ToId:     strconv.Itoa(serverId),
+					CurState: "leader",
+					Pid:      int64(pid),
+					Term:     int64(rf.currentTerm),
+					Layer:    tinnraftpb.LogLayer_RAFT,
+				}
+				go rf.apiGateClient.SendLogToGate(raftlog)
 
-				go rf.apiGateClient.SendLogToGate(tinnraftpb.LogOp_HeartBeat, "send heatbeat success", rf.me, serverId, "leader", "leader", pid)
 				DLog("[%v]: term: %v | send heartbeats to %v success\n", rf.me, rf.currentTerm, serverId)
 			}
 
@@ -223,7 +249,7 @@ func (rf *Raft) HandleAppendEntries(args *tinnraftpb.AppendEntriesArgs, reply *t
 		rf.currentTerm = int(args.Term)
 		rf.votedFor = -1
 	}
-	
+
 	//Leader的任期小于follower的任期，直接结束
 	if args.Term < int64(rf.currentTerm) {
 		return
@@ -232,7 +258,19 @@ func (rf *Raft) HandleAppendEntries(args *tinnraftpb.AppendEntriesArgs, reply *t
 	//Candidater在选举中收到了来自其他Leader的心跳，且任期更大
 	//说明选举失败，变回Follower
 	if rf.state == Candidate {
-		rf.apiGateClient.SendLogToGate(tinnraftpb.LogOp_ToFollow, "lose election and back to follower", rf.me, rf.me, "candidate", "follower", syscall.Getpid())
+		//LOG
+		pid := syscall.Getpid()
+		raftlog := &tinnraftpb.LogArgs{
+			Op:       tinnraftpb.LogOp_ToFollow,
+			Contents: "lose election and back to follower",
+			FromId:   strconv.Itoa(rf.me),
+			PreState: "candidate",
+			CurState: "follower",
+			Pid:      int64(pid),
+			Term:     int64(rf.currentTerm),
+			Layer:    tinnraftpb.LogLayer_RAFT,
+		}
+		rf.apiGateClient.SendLogToGate(raftlog)
 		DLog("[%v] term %v | election failed,become to follower from candidate\n", rf.me, rf.currentTerm)
 	}
 
@@ -241,7 +279,6 @@ func (rf *Raft) HandleAppendEntries(args *tinnraftpb.AppendEntriesArgs, reply *t
 	rf.resetElectionTimer()
 
 	if args.PrevLogIndex < rf.log.GetPersistFirstEntry().Index {
-
 		return
 	}
 

@@ -95,6 +95,7 @@ func (kvCli *ShardKVClient) SendRpcCommand(args *tinnraftpb.CommandArgs) (string
 		tinnraft.DLog("there is no shared in charge of this bucket")
 		return "", errors.New("there is no shared in charge of this bucket")
 	}
+	//向config cluster请求bucketId对应的sharedserver cluster addrs
 	if servers, ok := kvCli.config.Groups[groupId]; ok {
 
 		for _, addrs := range servers {
@@ -106,7 +107,7 @@ func (kvCli *ShardKVClient) SendRpcCommand(args *tinnraftpb.CommandArgs) (string
 
 			reply, err := (*kvCli.client.GetRaftServiceCli()).DoCommand(context.Background(), args)
 			if err != nil {
-				tinnraft.DLog("a node in cluster has down,begin try a another one")
+				tinnraft.DLog("a node in config cluster has down,begin try a another one")
 				continue
 			}
 
@@ -116,11 +117,12 @@ func (kvCli *ShardKVClient) SendRpcCommand(args *tinnraftpb.CommandArgs) (string
 				return reply.Value, nil
 			case common.ErrCodeWrongGroup:
 				kvCli.config = kvCli.configCli.Query(-1)
-				return "", errors.New("Wrong Group")
+				return "", errors.New("find Wrong Group")
 			case common.ErrCodeWrongLeader:
 				kvCli.client = tinnraft.MakeClientEnd(99, servers[reply.LeaderId])
+				reply, err := (*kvCli.client.GetRaftServiceCli()).DoCommand(context.Background(), args)
 				if err != nil {
-					fmt.Printf("err: %s", err.Error())
+					fmt.Printf("the leader in config cluster has down,err: %s", err.Error())
 					panic(err)
 				}
 				if reply.ErrCode == common.ErrCodeNoErr {

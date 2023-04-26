@@ -44,6 +44,7 @@ func (cfgCli *ConfigClient) Query(version int64) *Config {
 		ConfigVersion: version,
 	}
 	reply := cfgCli.CallDoConfig(confArgs)
+	
 	config := &Config{}
 	if reply != nil && reply.Config != nil {
 		config.Version = int(reply.Config.ConfigVersion)

@@ -3,6 +3,7 @@ package tinnraft
 import (
 	"context"
 	"sakurajima-ds/tinnraftpb"
+	"strconv"
 	"sync"
 	"syscall"
 )
@@ -26,7 +27,20 @@ import (
 // 候选人发起投票请求
 func (rf *Raft) candidateRequestVote(serverId int, args *tinnraftpb.RequestVoteArgs, voteCounter *int, becomeLeader *sync.Once) {
 	//发起rpc投票并接受结果
-	rf.apiGateClient.SendLogToGate(tinnraftpb.LogOp_RequestVote, "send request vote", rf.me, serverId, "candidate", "candidate", syscall.Getpid())
+
+	//LOG
+	raftlog := &tinnraftpb.LogArgs{
+		Op:       tinnraftpb.LogOp_RequestVote,
+		Contents: "send request vote",
+		FromId:   strconv.Itoa(rf.me),
+		ToId:     strconv.Itoa(serverId),
+		CurState: "candidate",
+		Pid:      int64(syscall.Getpid()),
+		Term:     int64(rf.currentTerm),
+		Layer:    tinnraftpb.LogLayer_RAFT,
+	}
+	rf.apiGateClient.SendLogToGate(raftlog)
+
 	DLog("[%v]: term %v | send request vote to %v ", rf.me, rf.currentTerm, serverId)
 	reply, err := rf.sendRequestVote(serverId, args)
 	if err != nil {
@@ -62,7 +76,20 @@ func (rf *Raft) candidateRequestVote(serverId int, args *tinnraftpb.RequestVoteA
 
 	//已经获得超过半数的选票
 	if *voteCounter > len(rf.peers)/2 && rf.currentTerm == int(args.Term) && rf.state == Candidate {
-		rf.apiGateClient.SendLogToGate(tinnraftpb.LogOp_ToLeader, "win vote and become leader", rf.me, rf.me, "follower", "leader", syscall.Getpid())
+
+		//LOG
+		raftlog := &tinnraftpb.LogArgs{
+			Op:       tinnraftpb.LogOp_ToLeader,
+			Contents: "win vote and become leader",
+			FromId:   strconv.Itoa(rf.me),
+			PreState: "follower",
+			CurState: "leader",
+			Pid:      int64(syscall.Getpid()),
+			Term:     int64(rf.currentTerm),
+			Layer:    tinnraftpb.LogLayer_RAFT,
+		}
+		rf.apiGateClient.SendLogToGate(raftlog)
+
 		DLog("[%d]: term %v | recieve the most votes, win the election,become the leader\n", rf.me, rf.currentTerm)
 		becomeLeader.Do(func() {
 			rf.ChangeRaftState(Leader)
@@ -76,13 +103,7 @@ func (rf *Raft) candidateRequestVote(serverId int, args *tinnraftpb.RequestVoteA
 func (rf *Raft) HandleRequestVote(args *tinnraftpb.RequestVoteArgs, reply *tinnraftpb.RequestVoteReply) {
 	rf.mu.Lock()
 	defer rf.mu.Unlock()
-
-	//发现候选人的term比自己大
-	if int(args.Term) > rf.currentTerm {
-		rf.ChangeRaftState(Follower)
-		rf.currentTerm = int(args.Term)
-		rf.votedFor = -1
-	}
+	defer rf.persist()
 
 	//发现候选人的term比自己小，拒绝投票
 	if int(args.Term) < rf.currentTerm ||
@@ -91,6 +112,13 @@ func (rf *Raft) HandleRequestVote(args *tinnraftpb.RequestVoteArgs, reply *tinnr
 		reply.Term = int64(rf.currentTerm)
 		reply.VoteGranted = false
 		return
+	}
+
+	//发现候选人的term比自己大
+	if int(args.Term) > rf.currentTerm {
+		rf.ChangeRaftState(Follower)
+		rf.currentTerm = int(args.Term)
+		rf.votedFor = -1
 	}
 
 	follow_lastLog := rf.log.GetPersistLastEntry()
@@ -106,7 +134,20 @@ func (rf *Raft) HandleRequestVote(args *tinnraftpb.RequestVoteArgs, reply *tinnr
 		//持久化
 		rf.persist()
 		rf.resetElectionTimer()
-		rf.apiGateClient.SendLogToGate(tinnraftpb.LogOp_Vote, "vote for candidate", rf.me, rf.votedFor, "follower", "follower", syscall.Getpid())
+
+		//LOG
+		raftlog := &tinnraftpb.LogArgs{
+			Op:       tinnraftpb.LogOp_Vote,
+			Contents: "vote for candidate",
+			FromId:   strconv.Itoa(rf.me),
+			ToId:     strconv.Itoa(rf.votedFor),
+			CurState: "follower",
+			Pid:      int64(syscall.Getpid()),
+			Term:     int64(rf.currentTerm),
+			Layer:    tinnraftpb.LogLayer_RAFT,
+		}
+		rf.apiGateClient.SendLogToGate(raftlog)
+
 		DLog("[%v]: term %v | vote for [%v]", rf.me, rf.currentTerm, rf.votedFor)
 	} else {
 		reply.VoteGranted = false

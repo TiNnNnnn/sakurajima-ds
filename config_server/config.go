@@ -10,11 +10,11 @@ import (
 
 type Config struct {
 	//mu      sync.Mutex
-	Version int
-	Buckets [common.BucketsNum]int
-	Groups  map[int][]string
+	Version  int
+	Buckets  [common.BucketsNum]int
+	Groups   map[int][]string
+	LeaderId int //for log ,no another meanings
 }
-
 
 func MakeDefaultConfig() Config {
 	return Config{

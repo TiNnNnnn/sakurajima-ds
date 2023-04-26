@@ -258,25 +258,49 @@ enum LogOp{
 	//启动成功
 	StartSucess = 10;
 
+	//监听配置变化
+	ListenConfigSuccess = 11;
+	ListenConfigFailed = 12;
+
+	PutKv = 13;
+	GetKv = 14;
+
+}
+
+//日志层级
+enum LogLayer{
+	ELSE = 0;
+	PERSIST = 1;
+	RAFT = 2;
+	SERVICE = 3;
 }
 
 message LogArgs{
+
+	//通用参数
 	LogOp Op= 1;
 	string Contents = 2;
-	int64 FromId = 3;
-	int64 ToId = 4;
-	string preState = 5; //之前的状态
-	string curState = 6; //当前状态
-	int64 Time = 7;
-	int64 pid = 8;
+	int64 Time = 3;
+	int64 pid = 4;
+	LogLayer layer = 5;
+	
+	//raft层相关
+	string FromId = 6;
+	string ToId = 7;
+	string preState = 8; //之前的状态
+	string curState = 9; //当前状态
+	int64 term = 10;
+
+	//service层相关
+	string bucketId = 11;
+
 }
 
-message LogReply{
+message LogReply{ //raft
 	int64 Errcode = 1;
 	string ErrMsg = 2;
 	bool success = 3; 
 }
-
 
 service RaftService{
     rpc RequestVote (RequestVoteArgs) returns (RequestVoteReply){}

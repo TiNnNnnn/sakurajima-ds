@@ -5,6 +5,7 @@ import (
 	api_gateway "sakurajima-ds/api_gateway_2"
 	"sakurajima-ds/storage_engine"
 	"sakurajima-ds/tinnraftpb"
+	"strconv"
 	"sync"
 	"sync/atomic"
 	"syscall"
@@ -94,7 +95,18 @@ func MakeRaft(peers []*ClientEnd, me int, dbEngine storage_engine.KvStorage,
 	}
 	fmt.Println("-----------------------------------")
 
-	rf.apiGateClient.SendLogToGate(tinnraftpb.LogOp_StartSucess, "start server sucess", rf.me, rf.me, "follower", "follower", syscall.Getpid())
+	// LOG
+	raftlog := &tinnraftpb.LogArgs{
+		Op:       tinnraftpb.LogOp_StartSucess,
+		Contents: "start server success",
+		FromId:   strconv.Itoa(rf.me),
+		CurState: "follower",
+		Pid:      int64(syscall.Getpid()),
+		Term:     int64(rf.currentTerm),
+		Layer:    tinnraftpb.LogLayer_RAFT,
+	}
+	rf.apiGateClient.SendLogToGate(raftlog)
+
 	DLog("[%v]: term %v | the last log idx is %v", rf.me, rf.currentTerm, rf.log.GetPersistLastEntry().Index)
 
 	//开启一个协程进行选举

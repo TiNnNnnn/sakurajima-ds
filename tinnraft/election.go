@@ -3,6 +3,7 @@ package tinnraft
 import (
 	"math/rand"
 	"sakurajima-ds/tinnraftpb"
+	"strconv"
 	"sync"
 	"syscall"
 	"time"
@@ -21,8 +22,20 @@ func (rf *Raft) leaderElection() {
 	voteCounter := 1
 
 	candiate_lastLog := rf.log.GetPersistLastEntry()
+	// LOG
+	pid := syscall.Getpid()
+	raftlog := &tinnraftpb.LogArgs{
+		Op:       tinnraftpb.LogOp_StartElection,
+		Contents: "follow start election",
+		FromId:   strconv.Itoa(rf.me),
+		PreState: "follower",
+		CurState: "candidate",
+		Pid:      int64(pid),
+		Term:     int64(rf.currentTerm),
+		Layer:    tinnraftpb.LogLayer_RAFT,
+	}
+	rf.apiGateClient.SendLogToGate(raftlog)
 
-	rf.apiGateClient.SendLogToGate(tinnraftpb.LogOp_StartElection, "follow start election", rf.me, rf.me, "follower", "candidate", syscall.Getpid())
 	DLog("[%v]: term: %v | start leader election\n", rf.me, rf.currentTerm)
 
 	args := tinnraftpb.RequestVoteArgs{

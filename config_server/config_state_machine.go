@@ -66,6 +66,7 @@ func (stm *ConfigStateMachine) Join(groups map[int][]string) error {
 		stm.curVerison + 1,
 		lastConf.Buckets,
 		CopyGroup(lastConf.Groups),
+		lastConf.LeaderId,
 	}
 
 	//更新Groups,向newConfig添加新的组别
@@ -114,6 +115,7 @@ func (stm *ConfigStateMachine) Leave(groupIds []int) error {
 		stm.curVerison + 1,
 		lastConf.Buckets,
 		CopyGroup(lastConf.Groups),
+		lastConf.LeaderId,
 	}
 	//删除指定的分组
 	for _, groupId := range groupIds {
@@ -142,6 +144,7 @@ func (stm *ConfigStateMachine) Move(bucketId int, groupId int) error {
 		stm.curVerison + 1,
 		lastConf.Buckets,
 		CopyGroup(lastConf.Groups),
+		lastConf.LeaderId,
 	}
 	//bucketId号桶 对于到 groupId号存储集群
 	newConf.Buckets[bucketId] = groupId

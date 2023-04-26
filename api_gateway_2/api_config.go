@@ -48,15 +48,25 @@ func ShowCurConfig(cfg *AddrConfig) {
 	log.Println("------------------------------------------")
 }
 
+type LogLayer string
+
+const (
+	PERSIST LogLayer = "PERSIST"
+	RAFT    LogLayer = "RAFT"
+	SERVICE LogLayer = "SERVICE"
+)
+
 // HeartBeat
 type HBLog struct {
 	Logtype  string
 	Content  string
-	From     int
-	To       int
+	From     string
+	To       string 
 	PreState string
 	CurState string
 	SvrType  string
-	GroupId  int
+	GroupId  int 
 	Time     int64
+	Term 	 int64
+	Layer    LogLayer
 }

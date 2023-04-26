@@ -14,6 +14,7 @@ import (
 	"strings"
 	"sync"
 	"sync/atomic"
+	"syscall"
 	"time"
 )
 
@@ -22,6 +23,7 @@ type ShardKV struct {
 	dead      int32
 	tinnrf    *tinnraft.Raft
 	applyCh   chan *tinnraftpb.ApplyMsg
+	nodeId    int
 	groupId   int
 	configCli *config_server.ConfigClient
 
@@ -36,6 +38,8 @@ type ShardKV struct {
 	notifyChans map[int]chan *tinnraftpb.CommandReply
 
 	stopApplyCh chan interface{}
+
+	apiGateClient *api_gateway.ApiGatwayClient
 
 	tinnraftpb.UnimplementedRaftServiceServer
 }
@@ -60,17 +64,19 @@ func MakeShardKVServer(peerMaps map[int]string, nodeId int, groupId int, configS
 		"./data/group_"+strconv.Itoa(groupId)+"/node_"+strconv.Itoa(nodeId))
 
 	shardkv := &ShardKV{
-		tinnrf:      tinnRf,
-		dead:        0,
-		lastApplied: 0,
-		applyCh:     newApplyCh,
-		groupId:     groupId,
-		lastConfig:  config_server.MakeDefaultConfig(),
-		curConfig:   config_server.MakeDefaultConfig(),
-		stm:         make(map[int]*Bucket),
-		engine:      newengine,
-		notifyChans: map[int]chan *tinnraftpb.CommandReply{},
-		configCli:   config_server.MakeCfgSvrClient(99, strings.Split(configSvrAddrs, ",")),
+		tinnrf:        tinnRf,
+		dead:          0,
+		lastApplied:   0,
+		applyCh:       newApplyCh,
+		nodeId:        nodeId,
+		groupId:       groupId,
+		lastConfig:    config_server.MakeDefaultConfig(),
+		curConfig:     config_server.MakeDefaultConfig(),
+		stm:           make(map[int]*Bucket),
+		engine:        newengine,
+		notifyChans:   map[int]chan *tinnraftpb.CommandReply{},
+		configCli:     config_server.MakeCfgSvrClient(99, strings.Split(configSvrAddrs, ",")),
+		apiGateClient: apigateclient,
 	}
 
 	//初始化buckets
@@ -167,11 +173,34 @@ func (s *ShardKV) ConfigAction() {
 			s.mu.RUnlock()
 
 			if allowedUpdtaeConf {
+				syscall.Getpid()
 				//向configServer请求最新版本
 				nextConfig := s.configCli.Query(int64(curConfVersion) + 1)
 				if nextConfig == nil {
+					//LOG
+					raftlog := &tinnraftpb.LogArgs{
+						Op:       tinnraftpb.LogOp_ListenConfigFailed,
+						Contents: "get config from configserver failed",
+						FromId:   strconv.Itoa(s.nodeId),
+						ToId:     strconv.Itoa(nextConfig.LeaderId),
+						CurState: "leader",
+						Pid:      int64(syscall.Getpid()),
+						Layer:    tinnraftpb.LogLayer_SERVICE,
+					}
+					s.apiGateClient.SendLogToGate(raftlog)
 					continue
 				}
+				//LOG
+				raftlog := &tinnraftpb.LogArgs{
+					Op:       tinnraftpb.LogOp_ListenConfigSuccess,
+					Contents: "get config from configserver success",
+					FromId:   strconv.Itoa(s.nodeId),
+					ToId:     strconv.Itoa(nextConfig.LeaderId),
+					CurState: "leader",
+					Pid:      int64(syscall.Getpid()),
+					Layer:    tinnraftpb.LogLayer_SERVICE,
+				}
+				s.apiGateClient.SendLogToGate(raftlog)
 
 				nextConfigBytes, _ := json.Marshal(nextConfig)
 				curConfigBytes, _ := json.Marshal(s.curConfig)
@@ -218,7 +247,7 @@ func (s *ShardKV) ConfigAction() {
 				}
 			}
 		}
-		time.Sleep(1 * time.Second)
+		time.Sleep(2 * time.Second)
 	}
 }
 
@@ -333,7 +362,6 @@ func (s *ShardKV) DoCommand(ctx context.Context, args *tinnraftpb.CommandArgs) (
 		return reply, nil
 	}
 
-	
 	idx, _, isLeader := s.tinnrf.Propose(argsBytes)
 	if !isLeader {
 		reply.ErrCode = common.ErrCodeWrongLeader
