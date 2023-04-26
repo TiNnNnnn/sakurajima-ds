@@ -34,13 +34,18 @@ func join(w http.ResponseWriter, r *http.Request, configaddrs []string) {
 			outBytes, _ = json.Marshal(lastConf)
 			log.Println("Join Success,cur Config: " + string(outBytes))
 			w.Write([]byte("join last config sucess! cur config: " + string(outBytes)))
+			w.Header().Add("res", "success")
+			w.Header().Add("config", string(outBytes))
 		}
 	} else {
 		if lastConf != nil {
 			outBytes, _ = json.Marshal(lastConf)
 			log.Println("Join Failed,cur Config: " + string(outBytes))
 			w.Write([]byte("join last config failed! cur config: " + string(outBytes)))
+			w.Header().Add("res", "failed")
+			w.Header().Add("config", string(outBytes))
 		} else {
+			w.Header().Add("res", "failed")
 			w.Write([]byte("join failed by all configservers down"))
 		}
 	}

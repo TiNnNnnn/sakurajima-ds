@@ -8,8 +8,6 @@ import (
 	"strings"
 )
 
-//var configPeersMap = string("127.0.0.1:8088,127.0.0.1:8089,127.0.0.1:8090")
-
 func Handler(w http.ResponseWriter, r *http.Request, as *api_gateway.ApiLogServer) {
 	if len(strings.Split(r.URL.EscapedPath(), "/")) < 3 {
 		log.Println("wrong args in urls")

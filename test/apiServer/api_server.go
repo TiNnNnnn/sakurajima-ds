@@ -6,10 +6,10 @@ import (
 	"log"
 	"net"
 	"net/http"
+	"os"
 	api_gateway "sakurajima-ds/api_gateway_2"
 	config "sakurajima-ds/api_gateway_2/config"
 	objects "sakurajima-ds/api_gateway_2/objects"
-	"sakurajima-ds/tinnraft"
 	"sakurajima-ds/tinnraftpb"
 
 	"github.com/gorilla/websocket"
@@ -18,7 +18,6 @@ import (
 
 var logrpcAddr = "127.0.0.1:10030"
 var apiSvr = api_gateway.MakeApiGatwayServer(logrpcAddr)
-var addr = flag.String("addr", "0.0.0.0:10055", "http service address")
 
 var upgrader = websocket.Upgrader{
 	CheckOrigin: func(r *http.Request) bool {
@@ -96,7 +95,7 @@ func LogRpcServer() {
 		fmt.Printf("failed to listen: %v", err)
 		return
 	}
-	tinnraft.DLog("server mutiLog listen on:  " + logrpcAddr)
+	log.Printf("server mutiLog listen on:  %v", logrpcAddr)
 	s := grpc.NewServer()
 
 	tinnraftpb.RegisterRaftServiceServer(s, apiSvr)
@@ -114,11 +113,37 @@ func ConfigHandler(w http.ResponseWriter, r *http.Request) {
 	config.Handler(w, r, apiSvr)
 }
 
+func handleClear(w http.ResponseWriter, r *http.Request) {
+	apiSvr.ClearDates(w, r)
+}
+
 func main() {
+
+	if len(os.Args) > 3 {
+		fmt.Println("usage: apigateway [api_gatway addr] [log_server addr]")
+		fmt.Println("----default args---------------")
+		fmt.Println("api_gatway addr: 0.0.0.0:10055")
+		fmt.Println("log_server:    : 127.0.0.1:10030")
+		fmt.Println("-------------------------------")
+		return
+	}
+	
+	gateAddr := "0.0.0.0:10055"
+	if len(os.Args) == 2 {
+		gateAddr = os.Args[1]
+	}
+
+	if len(os.Args) == 3 {
+		gateAddr = os.Args[1]
+		logrpcAddr = os.Args[2]
+	}
+
+	var addr = flag.String("addr", gateAddr, "http service address")
 
 	go LogRpcServer()
 
 	log.Println("api gateway begining working...")
+	log.Printf("server mutiLog listen on: %v", gateAddr)
 	flag.Parse()
 	log.SetFlags(0)
 
@@ -127,6 +152,7 @@ func main() {
 
 	http.HandleFunc("/close", handleClose)
 	http.HandleFunc("/log", handleLog)
+	http.HandleFunc("/clear", handleClear)
 
 	http.HandleFunc("/apis/", ObjectHandler)
 	http.HandleFunc("/config/", ConfigHandler)

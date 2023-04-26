@@ -23,6 +23,11 @@ func leave(w http.ResponseWriter, r *http.Request, configaddrs []string) {
 		outBytes, _ := json.Marshal(lastConf)
 		log.Printf("Leave group sucess ,last config has change to: %v\n", string(outBytes))
 		w.Write([]byte("leave group sucess, last config has change to: " + string(outBytes)))
+		w.Header().Add("res", "success")
+		w.Header().Add("config", string(outBytes))
+		return
 	}
+	w.Header().Add("res", "failed")
+	w.Write([]byte("leave group failed"))
 
 }

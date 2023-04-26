@@ -17,10 +17,11 @@ func query(w http.ResponseWriter, r *http.Request, configaddrs []string) {
 	if lastConf != nil {
 		outBytes, _ = json.Marshal(lastConf)
 		log.Println("Last Config: " + string(outBytes))
+		w.Header().Add("res", "success")
 		w.Write([]byte("get last config sucess! config: " + string(outBytes)))
-		return 
+		return
 	}
-
+	w.Header().Add("res", "failed")
 	w.Write([]byte("get last config failed,all configservers have down"))
 
 }

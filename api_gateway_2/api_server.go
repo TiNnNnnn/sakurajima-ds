@@ -381,8 +381,12 @@ func (as *ApiLogServer) StopServer(w http.ResponseWriter, r *http.Request) {
 
 }
 
+func (as *ApiLogServer) ClearDates(w http.ResponseWriter, r *http.Request) {
+
+}
+
 func GetServerIdFromHeader(h http.Header) string {
-	kvs_id := h.Get("s_id")
+	kvs_id := h.Get("sid")
 	if id, _ := strconv.Atoi(kvs_id); id < 0 {
 		log.Println("a illegal serverId! it should be more than 0")
 		return ""

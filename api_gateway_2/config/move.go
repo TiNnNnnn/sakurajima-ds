@@ -24,10 +24,18 @@ func move(w http.ResponseWriter, r *http.Request, configaddrs []string) {
 	for i := bLists[0]; i <= bLists[1]; i++ {
 		cfgCli.Move(i, gid)
 	}
+	
 	lastConf := cfgCli.Query(-1)
 	if lastConf != nil {
 		outBytes, _ := json.Marshal(lastConf)
 		log.Printf("last config has change to: %v\n", string(outBytes))
 		w.Write([]byte("move sucess, last config has change to: " + string(outBytes)))
+		w.Header().Add("res", "success")
+		w.Header().Add("config", string(outBytes))
+		return
 	}
+
+	w.Header().Add("res", "failed")
+	w.Write([]byte("move group failed"))
+
 }
