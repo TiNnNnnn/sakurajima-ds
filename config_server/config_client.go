@@ -45,7 +45,7 @@ func (cfgCli *ConfigClient) Query(version int64) *Config {
 	}
 	reply := cfgCli.CallDoConfig(confArgs)
 	config := &Config{}
-	if reply != nil {
+	if reply != nil && reply.Config != nil {
 		config.Version = int(reply.Config.ConfigVersion)
 		for i := 0; i < common.BucketsNum; i++ {
 			config.Buckets[i] = int(reply.Config.Buckets[i])

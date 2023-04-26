@@ -110,7 +110,7 @@ func addrsList2str(ConfigPeersMap []string) string {
 	}
 
 	if cfgstring[len(cfgstring)-1] == ',' {
-		cfgstring = cfgstring[1 : len(cfgstring)-1]
+		cfgstring = cfgstring[0 : len(cfgstring)-1]
 	}
 
 	return cfgstring
