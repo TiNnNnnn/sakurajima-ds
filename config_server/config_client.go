@@ -57,7 +57,6 @@ func (cfgCli *ConfigClient) Query(version int64) *Config {
 		}
 	} else {
 		tinnraft.DLog("query config reply failed , all configserver down")
-		return nil
 	}
 	return config
 }
@@ -112,7 +111,7 @@ func (cfg *ConfigClient) CallDoConfig(args *tinnraftpb.ConfigArgs) *tinnraftpb.C
 	for _, clientend := range cfg.clientends {
 		confReply, err = (*clientend.GetRaftServiceCli()).DoConfig(context.Background(), args)
 		if err != nil {
-			tinnraft.DLog("a node in shared cluster is down,try next")
+			tinnraft.DLog("a node in config cluster is down,try next,err:%v\n", err.Error())
 			continue
 		}
 		switch confReply.ErrCode {
@@ -123,7 +122,7 @@ func (cfg *ConfigClient) CallDoConfig(args *tinnraftpb.ConfigArgs) *tinnraftpb.C
 			tinnraft.DLog("find leader id is %d", confReply.LeaderId)
 			confReply, err := (*cfg.clientends[confReply.LeaderId].GetRaftServiceCli()).DoConfig(context.Background(), args)
 			if err != nil {
-				tinnraft.DLog("a node in cluster is down: ", err.Error())
+				tinnraft.DLog("leader in config cluster is down")
 				continue
 			}
 			if confReply.ErrCode == common.ErrCodeNoErr {

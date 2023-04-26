@@ -87,7 +87,8 @@ func (kvCli *ShardKVClient) DeleteBucketDatas(gid int, bucketIds []int64) string
 
 func (kvCli *ShardKVClient) SendRpcCommand(args *tinnraftpb.CommandArgs) (string, error) {
 	bucket_id := common.KeyToBucketId(args.Key)
-	log.Printf("bucketId: %v\n", bucket_id)
+	log.Printf("caculated bucketId: %v\n", bucket_id)
+
 	//根据bucketId 查询分组
 	groupId := kvCli.config.Buckets[bucket_id]
 	if groupId == 0 { //当前bucket没有挂载对应group
@@ -117,7 +118,7 @@ func (kvCli *ShardKVClient) SendRpcCommand(args *tinnraftpb.CommandArgs) (string
 				kvCli.config = kvCli.configCli.Query(-1)
 				return "", errors.New("Wrong Group")
 			case common.ErrCodeWrongLeader:
-				kvCli.client = tinnraft.MakeClientEnd(999, servers[reply.LeaderId])
+				kvCli.client = tinnraft.MakeClientEnd(99, servers[reply.LeaderId])
 				if err != nil {
 					fmt.Printf("err: %s", err.Error())
 					panic(err)

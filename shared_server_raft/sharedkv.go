@@ -4,7 +4,6 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
-	"log"
 	api_gateway "sakurajima-ds/api_gateway_2"
 	"sakurajima-ds/common"
 	"sakurajima-ds/config_server"
@@ -155,11 +154,11 @@ func (s *ShardKV) ConfigAction() {
 				}
 			}
 
-			log.Printf("-------------------------------------\n")
-			for i, b := range s.stm {
-				log.Printf("{%v,%v,%v} ", i, b.ID, b.Status)
-			}
-			log.Printf("-------------------------------------\n")
+			// log.Printf("-------------------------------------\n")
+			// for i, b := range s.stm {
+			// 	log.Printf("{%v,%v,%v} ", i, b.ID, b.Status)
+			// }
+			// log.Printf("-------------------------------------\n")
 
 			if allowedUpdtaeConf {
 				tinnraft.DLog("allowed to perfrom next conf")
@@ -334,6 +333,7 @@ func (s *ShardKV) DoCommand(ctx context.Context, args *tinnraftpb.CommandArgs) (
 		return reply, nil
 	}
 
+	
 	idx, _, isLeader := s.tinnrf.Propose(argsBytes)
 	if !isLeader {
 		reply.ErrCode = common.ErrCodeWrongLeader

@@ -5,7 +5,7 @@ kvserver:
 kvclient:
 	go build -o output/kvclient test/kvc/kvclient.go 
 configserver:
-	go build -o output/cfgserver test/configServer/configServer.go 
+	go build -o output/cfgserver test/configserver/configServer.go 
 sharedserver:
 	go build -o output/sharedserver test/sharedserver/shareserver.go 
 clean:

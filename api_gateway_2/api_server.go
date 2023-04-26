@@ -11,6 +11,7 @@ import (
 	"os"
 	"os/exec"
 	"sakurajima-ds/common"
+	"time"
 
 	"sakurajima-ds/storage_engine"
 	"sakurajima-ds/tinnraftpb"
@@ -63,7 +64,8 @@ func (as *ApiLogServer) SendMutiLog(c *websocket.Conn) {
 
 			addr := ""
 			for i := 0; i < 15; i++ {
-				addr = common.GetGroupIdBypId2(int(mutiLog.Pid), "./../../outp")
+				time.Sleep(1e6)
+				addr = common.GetGroupIdBypId(int(mutiLog.Pid))
 				if addr != "" {
 					break
 				}
@@ -200,10 +202,8 @@ func (as *ApiLogServer) StartConfigServer(w http.ResponseWriter, r *http.Request
 		return
 	}
 
-	cfgAddrMap := make(map[int]string)
-	for i, addr := range cfgAddrs {
-		cfgAddrMap[i] = addr
-	}
+	cfgAddrMap := []string{}
+	cfgAddrMap = append(cfgAddrMap, cfgAddrs...)
 
 	curConfig, err := as.Stm.Query(-1)
 	if err != nil {
@@ -380,7 +380,6 @@ func (as *ApiLogServer) StopServer(w http.ResponseWriter, r *http.Request) {
 	w.Write([]byte("kill proc " + stype + ":" + strconv.Itoa(sid) + " with port " + port + " success"))
 
 }
-
 
 func GetServerIdFromHeader(h http.Header) string {
 	kvs_id := h.Get("s_id")

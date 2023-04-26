@@ -14,8 +14,10 @@ func Handler(w http.ResponseWriter, r *http.Request, as *api_gateway.ApiLogServe
 		log.Println("wrong args in urls")
 		return
 	}
+
 	m := r.Method
 	op := strings.Split(r.URL.EscapedPath(), "/")[2]
+	fmt.Printf("apis op: %v\n", op)
 
 	if m == http.MethodPut {
 		switch op {
@@ -41,7 +43,9 @@ func Handler(w http.ResponseWriter, r *http.Request, as *api_gateway.ApiLogServe
 func put(w http.ResponseWriter, r *http.Request, as *api_gateway.ApiLogServer) {
 
 	key := GetKeyFromHeader(r.Header)
-	value := GetKeyFromHeader(r.Header)
+	value := GetValueFromHeader(r.Header)
+
+	fmt.Printf("key: %v value: %v\n", key, value)
 
 	if key == "" || value == "" {
 		log.Println("key or value is empty,failed")
@@ -58,12 +62,16 @@ func put(w http.ResponseWriter, r *http.Request, as *api_gateway.ApiLogServer) {
 	ConfigPeersMap := curAddrsCfg.Cfg_server_addr
 	cfgstring := addrsList2str(ConfigPeersMap)
 
+	fmt.Printf("config addrs: %v\n", cfgstring)
+
 	//向sharedServer 存储数据
 	skvclient := shared_server.MakeSharedKvClient(cfgstring)
 	puterr := skvclient.Put(key, value)
 	if puterr != nil {
-		fmt.Println("err: " + err.Error())
+		fmt.Println("err: " + puterr.Error())
+		return 
 	}
+	fmt.Printf("put data sucess\n")
 }
 
 func get(w http.ResponseWriter, r *http.Request, as *api_gateway.ApiLogServer) {
@@ -93,20 +101,16 @@ func get(w http.ResponseWriter, r *http.Request, as *api_gateway.ApiLogServer) {
 	w.Write([]byte("get value " + v + " success"))
 }
 
-
-
-func addrsList2str(ConfigPeersMap map[int]string) string {
+func addrsList2str(ConfigPeersMap []string) string {
 
 	cfgstring := ""
 	for _, addr := range ConfigPeersMap {
-		if len(addr) > 0 {
-			cfgstring += addr
-			cfgstring += ","
-		}
+		cfgstring += addr
+		cfgstring += ","
 	}
 
 	if cfgstring[len(cfgstring)-1] == ',' {
-		cfgstring = cfgstring[1 : len(cfgstring)-2]
+		cfgstring = cfgstring[1 : len(cfgstring)-1]
 	}
 
 	return cfgstring

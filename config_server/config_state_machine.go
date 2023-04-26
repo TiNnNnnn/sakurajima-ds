@@ -14,7 +14,7 @@ type ConfigOp interface {
 	Join(groups map[int][]string) error
 	Leave(groupId []int) error
 	Move(bucketId int, groupId int) error
-	Query(num int) (Config, error)
+	Query(version int) (Config, error)
 }
 
 type ConfigStateMachine struct {
