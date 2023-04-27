@@ -96,12 +96,13 @@ func MakeRaft(peers []*ClientEnd, me int, dbEngine storage_engine.KvStorage,
 	fmt.Println("-----------------------------------")
 
 	// LOG
+	pid := syscall.Getpid()
 	raftlog := &tinnraftpb.LogArgs{
 		Op:       tinnraftpb.LogOp_StartSucess,
 		Contents: "start server success",
 		FromId:   strconv.Itoa(rf.me),
 		CurState: "follower",
-		Pid:      int64(syscall.Getpid()),
+		Pid:      int64(pid),
 		Term:     int64(rf.currentTerm),
 		Layer:    tinnraftpb.LogLayer_RAFT,
 	}

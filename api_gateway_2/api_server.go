@@ -23,26 +23,26 @@ import (
 )
 
 type ApiLogServer struct {
-	Mu              sync.Mutex
-	CfgMu           sync.Mutex
-	LogChan         chan string              //unprduce log channel
-	MutiChan        chan *tinnraftpb.LogArgs // format json log channel for raft layel
-	MutiChanService chan *tinnraftpb.LogArgs // format json log channel for raft layel
-	StopChan        chan bool
-	cfgCond         *sync.Cond
-	Stm             *AddrStateMachine //restore configsever,sharedserver addrs
+	Mu        sync.Mutex
+	CfgMu     sync.Mutex
+	LogChan   chan string              //unprduce log channel
+	MutiChan  chan *tinnraftpb.LogArgs // format json log channel for raft layel
+	StopChan  chan bool
+	cfgCond   *sync.Cond
+	Stm       *AddrStateMachine //restore configsever,sharedserver addrs
+	IsConnect bool
 	tinnraftpb.UnimplementedRaftServiceServer
 }
 
 func MakeApiGatwayServer(saddr string) *ApiLogServer {
 
-	addrEngine := storage_engine.EngineFactory("leveldb", "./saddr_data/"+"api_server/")
+	addrEngine := storage_engine.EngineFactory("leveldb", "../SALOG/api_data/"+"api_server/")
 	apiServer := &ApiLogServer{
-		LogChan:         make(chan string),
-		MutiChan:        make(chan *tinnraftpb.LogArgs, 1024),
-		MutiChanService: make(chan *tinnraftpb.LogArgs, 1024),
-		StopChan:        make(chan bool),
-		Stm:             MakeAddrConfigStm(addrEngine),
+		LogChan:   make(chan string),
+		MutiChan:  make(chan *tinnraftpb.LogArgs, 1024),
+		IsConnect: false,
+		StopChan:  make(chan bool),
+		Stm:       MakeAddrConfigStm(addrEngine),
 	}
 
 	apiServer.cfgCond = sync.NewCond(&apiServer.CfgMu)
@@ -55,6 +55,9 @@ func (as *ApiLogServer) SendMutiLog(c *websocket.Conn) {
 	for {
 		mutiLog := <-as.MutiChan
 
+		if mutiLog == nil {
+			return
+		}
 		//根据pid获取节点类型
 		sType := common.GetNameBypId(int(mutiLog.Pid))
 
@@ -67,7 +70,7 @@ func (as *ApiLogServer) SendMutiLog(c *websocket.Conn) {
 			saddrs := curAddrCfg.Shared_server_addr
 
 			addr := ""
-			for i := 0; i < 15; i++ { //warning: netstat has timeout dangerours
+			for i := 0; i < 20; i++ { //warning: netstat has timeout dangerours
 				time.Sleep(1e6)
 				addr = common.GetGroupIdBypId(int(mutiLog.Pid))
 				if addr != "" {
@@ -75,6 +78,7 @@ func (as *ApiLogServer) SendMutiLog(c *websocket.Conn) {
 				}
 			}
 			if addr == "" {
+				fmt.Println("addr is null")
 				return
 			}
 
@@ -88,8 +92,8 @@ func (as *ApiLogServer) SendMutiLog(c *websocket.Conn) {
 			}
 		}
 
-		log.Printf("mutilogbytes: {%v %v %v %v %v %v %v %v %v %v}\n",
-			mutiLog.Op, mutiLog.Contents, mutiLog.FromId, mutiLog.ToId, mutiLog.PreState, mutiLog.CurState, sType, groupId, mutiLog.Term, mutiLog.Layer)
+		log.Printf("mutilogbytes: {%v %v %v %v %v %v %v %v %v %v %v}\n",
+			mutiLog.Op, mutiLog.Contents, mutiLog.FromId, mutiLog.ToId, mutiLog.PreState, mutiLog.CurState, sType, groupId, mutiLog.Term, mutiLog.Layer, mutiLog.BucketId)
 
 		hblog := HBLog{
 			Logtype:  mutiLog.Op.String(),
@@ -102,7 +106,8 @@ func (as *ApiLogServer) SendMutiLog(c *websocket.Conn) {
 			GroupId:  groupId,
 			Term:     mutiLog.Term,
 			Time:     mutiLog.Time,
-			Layer:    RAFT,
+			Layer:    mutiLog.Layer.Enum().String(),
+			BucketId: mutiLog.BucketId,
 		}
 
 		logBytes, _ := json.Marshal(hblog)
@@ -148,7 +153,20 @@ func (as *ApiLogServer) DoLog(ctx context.Context, args *tinnraftpb.LogArgs) (*t
 		reply.Errcode = 0
 		reply.ErrMsg = ""
 		reply.Success = true
-		as.MutiChan <- args
+
+		// select {
+		// case <-as.StopChan:
+		// 	log.Println("recv the stop connect,close mutlichan")
+		// 	close(as.MutiChan)
+
+		// 	return &reply, nil
+		// default:
+
+		//}
+		if as.IsConnect {
+			as.MutiChan <- args
+		}
+
 		return &reply, nil
 	} else {
 		reply.Errcode = 10
@@ -239,18 +257,18 @@ func (as *ApiLogServer) StartConfigServer(w http.ResponseWriter, r *http.Request
 	cmd.Stdout = &out
 	cmd.Stderr = &out
 
-	//获取server stdout
-	go func() {
-		for {
-			l, err := out.ReadString('\n')
-			//out.Grow(1024)
-			if err != nil && err.Error() != "EOF" {
-				log.Print(err)
-				continue
-			}
-			as.LogChan <- l
-		}
-	}()
+	// //获取server stdout
+	// go func() {
+	// 	for {
+	// 		l, err := out.ReadString('\n')
+	// 		//out.Grow(1024)
+	// 		if err != nil && err.Error() != "EOF" {
+	// 			log.Print(err)
+	// 			continue
+	// 		}
+	// 		as.LogChan <- l
+	// 	}
+	// }()
 
 	runErr := cmd.Run()
 	if runErr != nil {
@@ -309,22 +327,6 @@ func (as *ApiLogServer) StartSharedServer(w http.ResponseWriter, r *http.Request
 	//启动sharedserver
 	fmt.Println("START: [./../../output/sharedserver " + sid + " " + gid + " [" + cfg_addrs + "] [" + shared_addrs + "]]")
 	cmd := exec.Command("./../../output/sharedserver", sid, gid, cfg_addrs, shared_addrs)
-
-	cmd.Stdin = os.Stdin
-	var out bytes.Buffer
-	cmd.Stdout = &out
-	cmd.Stderr = &out
-
-	go func() {
-		for {
-			l, err := out.ReadString('\n')
-			if err != nil && err.Error() != "EOF" {
-				log.Print(err)
-				continue
-			}
-			as.LogChan <- l
-		}
-	}()
 
 	runErr := cmd.Run()
 	if runErr != nil {

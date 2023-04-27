@@ -293,6 +293,7 @@ message LogArgs{
 
 	//service层相关
 	string bucketId = 11;
+	string groupId = 12;
 
 }
 

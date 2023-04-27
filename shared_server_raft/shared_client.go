@@ -95,7 +95,8 @@ func (kvCli *ShardKVClient) SendRpcCommand(args *tinnraftpb.CommandArgs) (string
 		tinnraft.DLog("there is no shared in charge of this bucket")
 		return "", errors.New("there is no shared in charge of this bucket")
 	}
-	//向config cluster请求bucketId对应的sharedserver cluster addrs
+
+	//向shared cluster 发送 put request
 	if servers, ok := kvCli.config.Groups[groupId]; ok {
 
 		for _, addrs := range servers {
@@ -138,6 +139,27 @@ func (kvCli *ShardKVClient) SendRpcCommand(args *tinnraftpb.CommandArgs) (string
 	}
 	return "", errors.New("Unknow error")
 }
+
+// func (kvCli *ShardKVClient) SendBucketRpcCommand(args *tinnraftpb.BucketOpArgs) string {
+// 	for {
+// 		if servers, ok := kvCli.config.Groups[int(args.GroupId)]; ok {
+// 			for _, serverAddr := range servers { //获取当前分组对应的集群server addr，尝试发送
+// 				kvCli.client = tinnraft.MakeClientEnd(99, serverAddr)
+// 				reply, err := (*kvCli.client.GetRaftServiceCli()).DoBucket(context.Background(), args)
+// 				if err == nil {
+// 					if reply != nil {
+// 						return string(reply.BucketData)
+// 					} else {
+// 						return ""
+// 					}
+// 				} else {
+// 					tinnraft.DLog("send commend to server error: %v", err.Error())
+// 					continue
+// 				}
+// 			}
+// 		}
+// 	}
+// }
 
 func (kvCli *ShardKVClient) SendBucketRpcCommand(args *tinnraftpb.BucketOpArgs) string {
 	for {

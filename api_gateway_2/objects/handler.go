@@ -6,6 +6,7 @@ import (
 	"net/http"
 	api_gateway "sakurajima-ds/api_gateway_2"
 	shared_server "sakurajima-ds/shared_server_raft"
+	"strconv"
 	"strings"
 )
 
@@ -32,6 +33,7 @@ func Handler(w http.ResponseWriter, r *http.Request, as *api_gateway.ApiLogServe
 			get(w, r, as)
 			return
 		case "query":
+			query(w, r, as)
 			return
 		}
 
@@ -69,7 +71,7 @@ func put(w http.ResponseWriter, r *http.Request, as *api_gateway.ApiLogServer) {
 	puterr := skvclient.Put(key, value)
 	if puterr != nil {
 		fmt.Println("err: " + puterr.Error())
-		return 
+		return
 	}
 	fmt.Printf("put data sucess\n")
 }
@@ -101,6 +103,35 @@ func get(w http.ResponseWriter, r *http.Request, as *api_gateway.ApiLogServer) {
 	w.Write([]byte("get value " + v + " success"))
 }
 
+func query(w http.ResponseWriter, r *http.Request, as *api_gateway.ApiLogServer) {
+	bliststr := GetBucketListFromHeader(r.Header)
+	gid, _ := strconv.Atoi(GetGroupIdFromHeader(r.Header))
+
+	//find configServer addrs
+	curAddrsCfg, err := as.Stm.Query(-1)
+	if err != nil {
+		log.Println("query lastest log failed")
+		return
+	}
+	
+	ConfigPeersMap := curAddrsCfg.Cfg_server_addr
+	cfgstring := addrsList2str(ConfigPeersMap)
+
+	bids := []int64{}
+	blist := strings.Split(bliststr, ",")
+	for _, b := range blist {
+		bid, _ := strconv.Atoi(b)
+		bids = append(bids, int64(bid))
+	}
+
+	skvclient := shared_server.MakeSharedKvClient(cfgstring)
+	datas := skvclient.GetBucketDatas(gid, bids)
+
+	log.Printf("get buckets data: %v", datas)
+	w.Write([]byte("get buckets data success,data:" + datas))
+
+}
+
 func addrsList2str(ConfigPeersMap []string) string {
 
 	cfgstring := ""
@@ -124,4 +155,25 @@ func GetKeyFromHeader(h http.Header) string {
 func GetValueFromHeader(h http.Header) string {
 	value := h.Get("value")
 	return value
+}
+
+func GetBucketListFromHeader(h http.Header) string {
+	blist := h.Get("blist")
+	b := strings.Split(blist, ",")
+	if len(b) <= 0 {
+		log.Println("no bid in blist")
+		return ""
+	}
+
+	return blist
+}
+
+func GetGroupIdFromHeader(h http.Header) string {
+	gid := h.Get("gid")
+	gidstring, _ := strconv.Atoi(gid)
+	if gidstring < 0 {
+		fmt.Println("a illage gid! it should be more than 0")
+		return ""
+	}
+	return gid
 }

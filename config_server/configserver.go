@@ -40,9 +40,9 @@ func MakeConfigServer(peerMaps map[int]string, serverId int) *ConfigServer {
 	//创建管道，应用层监听raft提交的操作与数据信息(ConfigArgs)
 	applyCh := make(chan *tinnraftpb.ApplyMsg)
 
-	Configengine := storage_engine.EngineFactory("leveldb", "./conf_data"+"/node_"+strconv.Itoa(serverId))
+	Configengine := storage_engine.EngineFactory("leveldb", "../SALOG/conf_data"+"/node_"+strconv.Itoa(serverId))
 
-	logEngine := storage_engine.EngineFactory("leveldb", "./log_data/"+"configserver/node_"+strconv.Itoa(serverId))
+	logEngine := storage_engine.EngineFactory("leveldb", "../SALOG/log_data/"+"configserver/node_"+strconv.Itoa(serverId))
 
 	apigateclient := api_gateway.MakeApiGatwayClient(99, "127.0.0.1:10030")
 
@@ -157,6 +157,7 @@ func (cs *ConfigServer) ApplingToStm(done <-chan interface{}) {
 				for groupId, addrs := range conf.Groups {
 					reply.Config.Groups[int64(groupId)] = strings.Join(addrs, ",")
 				}
+				reply.LeaderId = cs.tinnRf.GetLeaderId()
 			}
 			if err != nil {
 				reply.ErrMsg = err.Error()
@@ -194,6 +195,7 @@ func (cs *ConfigServer) DoConfig(ctx context.Context, args *tinnraftpb.ConfigArg
 		reply.Config = res.Config
 		reply.ErrMsg = res.ErrMsg
 		reply.ErrCode = common.ErrCodeNoErr
+		reply.LeaderId = res.LeaderId
 	case <-time.After(3 * time.Second):
 		reply.ErrMsg = "server timeout"
 		reply.ErrCode = common.ErrCodeExecTimeout

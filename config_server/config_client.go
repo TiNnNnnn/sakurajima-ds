@@ -44,10 +44,11 @@ func (cfgCli *ConfigClient) Query(version int64) *Config {
 		ConfigVersion: version,
 	}
 	reply := cfgCli.CallDoConfig(confArgs)
-	
+
 	config := &Config{}
 	if reply != nil && reply.Config != nil {
 		config.Version = int(reply.Config.ConfigVersion)
+		config.LeaderId = int(reply.LeaderId)
 		for i := 0; i < common.BucketsNum; i++ {
 			config.Buckets[i] = int(reply.Config.Buckets[i])
 		}
@@ -56,6 +57,7 @@ func (cfgCli *ConfigClient) Query(version int64) *Config {
 			slist := strings.Split(v, ",")
 			config.Groups[int(k)] = slist
 		}
+
 	} else {
 		tinnraft.DLog("query config reply failed , all configserver down")
 	}
@@ -123,10 +125,12 @@ func (cfg *ConfigClient) CallDoConfig(args *tinnraftpb.ConfigArgs) *tinnraftpb.C
 			tinnraft.DLog("find leader id is %d", confReply.LeaderId)
 			confReply, err := (*cfg.clientends[confReply.LeaderId].GetRaftServiceCli()).DoConfig(context.Background(), args)
 			if err != nil {
+				cfg.leaderId = confReply.LeaderId
 				tinnraft.DLog("leader in config cluster is down")
 				continue
 			}
 			if confReply.ErrCode == common.ErrCodeNoErr {
+
 				cfg.commandId++
 				return confReply
 			}

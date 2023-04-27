@@ -19,6 +19,7 @@ type Config struct {
 func MakeDefaultConfig() Config {
 	return Config{
 		Groups: make(map[int][]string),
+		LeaderId: -1,
 	}
 }
 

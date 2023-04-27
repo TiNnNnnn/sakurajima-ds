@@ -35,7 +35,7 @@ func IsEqual(precfg, curcfg *AddrConfig) bool {
 		return false
 	}
 
-	if !reflect.DeepEqual(precfg.Shared_server_addr, precfg.Shared_server_addr) {
+	if !reflect.DeepEqual(precfg.Shared_server_addr, curcfg.Shared_server_addr) {
 		return false
 	}
 
@@ -61,12 +61,13 @@ type HBLog struct {
 	Logtype  string
 	Content  string
 	From     string
-	To       string 
+	To       string
 	PreState string
 	CurState string
 	SvrType  string
-	GroupId  int 
+	GroupId  int
 	Time     int64
-	Term 	 int64
-	Layer    LogLayer
+	Term     int64
+	Layer    string 
+	BucketId string 
 }

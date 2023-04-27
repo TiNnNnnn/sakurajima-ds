@@ -54,14 +54,14 @@ func MakeShardKVServer(peerMaps map[int]string, nodeId int, groupId int, configS
 	newApplyCh := make(chan *tinnraftpb.ApplyMsg)
 
 	logengine := storage_engine.EngineFactory("leveldb",
-		"./log_data/shared_svr/group_"+strconv.Itoa(groupId)+"/node_"+strconv.Itoa(nodeId))
+		"../SALOG/log_data/shared_svr/group_"+strconv.Itoa(groupId)+"/node_"+strconv.Itoa(nodeId))
 
 	apigateclient := api_gateway.MakeApiGatwayClient(99, "127.0.0.1:10030")
 
 	tinnRf := tinnraft.MakeRaft(clients, nodeId, logengine, newApplyCh, apigateclient)
 
 	newengine := storage_engine.EngineFactory("leveldb",
-		"./data/group_"+strconv.Itoa(groupId)+"/node_"+strconv.Itoa(nodeId))
+		"../SALOG/shared_data/group_"+strconv.Itoa(groupId)+"/node_"+strconv.Itoa(nodeId))
 
 	shardkv := &ShardKV{
 		tinnrf:        tinnRf,
@@ -173,12 +173,11 @@ func (s *ShardKV) ConfigAction() {
 			s.mu.RUnlock()
 
 			if allowedUpdtaeConf {
-				syscall.Getpid()
 				//向configServer请求最新版本
 				nextConfig := s.configCli.Query(int64(curConfVersion) + 1)
-				if nextConfig == nil {
+				if nextConfig == nil || nextConfig.Groups == nil || len(nextConfig.Buckets) == 0 {
 					//LOG
-					raftlog := &tinnraftpb.LogArgs{
+					servicelog := &tinnraftpb.LogArgs{
 						Op:       tinnraftpb.LogOp_ListenConfigFailed,
 						Contents: "get config from configserver failed",
 						FromId:   strconv.Itoa(s.nodeId),
@@ -187,11 +186,14 @@ func (s *ShardKV) ConfigAction() {
 						Pid:      int64(syscall.Getpid()),
 						Layer:    tinnraftpb.LogLayer_SERVICE,
 					}
-					s.apiGateClient.SendLogToGate(raftlog)
+					s.apiGateClient.SendLogToGate(servicelog)
+
+					time.Sleep(2 * time.Second)
 					continue
 				}
+
 				//LOG
-				raftlog := &tinnraftpb.LogArgs{
+				servicelog := &tinnraftpb.LogArgs{
 					Op:       tinnraftpb.LogOp_ListenConfigSuccess,
 					Contents: "get config from configserver success",
 					FromId:   strconv.Itoa(s.nodeId),
@@ -200,7 +202,7 @@ func (s *ShardKV) ConfigAction() {
 					Pid:      int64(syscall.Getpid()),
 					Layer:    tinnraftpb.LogLayer_SERVICE,
 				}
-				s.apiGateClient.SendLogToGate(raftlog)
+				s.apiGateClient.SendLogToGate(servicelog)
 
 				nextConfigBytes, _ := json.Marshal(nextConfig)
 				curConfigBytes, _ := json.Marshal(s.curConfig)
@@ -277,12 +279,41 @@ func (s *ShardKV) ApplingToStm(done <-chan interface{}) {
 				bucketId := common.KeyToBucketId(args.Key)
 				if s.LegToServe(bucketId) {
 					tinnraft.DLog("put " + args.Key + " value " + args.Value + "to bucket " + strconv.Itoa(bucketId))
-					s.stm[bucketId].Put(args.Key, args.Value)
+					err = s.stm[bucketId].Put(args.Key, args.Value)
+					if err != nil {
+						tinnraft.DLog("applingtostm err: %v", err.Error())
+					}
+					// LOG
+					raftlog := &tinnraftpb.LogArgs{
+						Op:       tinnraftpb.LogOp_PutKv,
+						Contents: "put the kv to the stm success",
+						FromId:   strconv.Itoa(s.nodeId),
+						Pid:      int64(syscall.Getpid()),
+						BucketId: strconv.Itoa(bucketId),
+						GroupId:  strconv.Itoa(s.groupId),
+						Layer:    tinnraftpb.LogLayer_PERSIST,
+					}
+					s.apiGateClient.SendLogToGate(raftlog)
+
 				}
 			case tinnraftpb.OpType_Get: //下载数据
 				bucketId := common.KeyToBucketId(args.Key)
 				if s.LegToServe(bucketId) {
 					value, err = s.stm[bucketId].Get(args.Key)
+					if err != nil {
+						tinnraft.DLog("applingtostm err: %v", err.Error())
+					}
+					// LOG
+					raftlog := &tinnraftpb.LogArgs{
+						Op:       tinnraftpb.LogOp_GetKv,
+						Contents: "get the key from the stm success",
+						FromId:   strconv.Itoa(s.nodeId),
+						Pid:      int64(syscall.Getpid()),
+						BucketId: strconv.Itoa(bucketId),
+						GroupId:  strconv.Itoa(s.groupId),
+						Layer:    tinnraftpb.LogLayer_PERSIST,
+					}
+					s.apiGateClient.SendLogToGate(raftlog)
 					tinnraft.DLog("get " + args.Key + " value " + value + " from bucket " + strconv.Itoa(bucketId))
 				}
 				reply.Value = value
@@ -394,10 +425,12 @@ func (s *ShardKV) DoCommand(ctx context.Context, args *tinnraftpb.CommandArgs) (
 
 // 重写DoBucketRpc方法（被客户端直接调用）
 func (s *ShardKV) DoBucket(ctx context.Context, args *tinnraftpb.BucketOpArgs) (*tinnraftpb.BucketOpReply, error) {
+	
 	reply := &tinnraftpb.BucketOpReply{}
 	if _, isLeader := s.tinnrf.GetState(); !isLeader {
 		return reply, errors.New("ErrorWrongLeader")
 	}
+
 	switch args.BucketOpType {
 	case tinnraftpb.BucketOpType_GetData: //获取bucket数据
 		{
@@ -409,7 +442,7 @@ func (s *ShardKV) DoBucket(ctx context.Context, args *tinnraftpb.BucketOpArgs) (
 
 			bucketdatas := map[int]map[string]string{}
 			for _, bucketId := range args.BucketIds {
-				datas, err := s.stm[int(bucketId)].DeepCopy()
+				datas, err := s.stm[int(bucketId)].DeepCopy() //DeepCopy
 				if err != nil {
 					s.mu.RUnlock()
 					return reply, err

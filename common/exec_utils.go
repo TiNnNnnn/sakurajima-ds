@@ -50,7 +50,7 @@ func GetGroupIdBypId(pid int) string {
 
 	//fmt.Printf("nestat result: %v\n", status.Stdout)
 	if len(status.Stdout) == 0 {
-		fmt.Printf("status.Stdout: can't find proc with pid %v\n", pid)
+		fmt.Printf("GetGroupIdBypId: can't find proc with pid %v\n", pid)
 		return ""
 	}
 
@@ -71,14 +71,14 @@ func GetPidByport(port string) string {
 	fmt.Printf("nestat result: %v", status.Stdout)
 
 	if len(status.Stdout) == 0 {
-		fmt.Printf("can't find proc with port %v", port)
+		fmt.Printf("GetPidByport can't find proc with port %v", port)
 		//w.Write([]byte("can't find proc with port " + port))
 		return ""
 	}
 
 	fields := strings.Fields(status.Stdout[0])
 	if len(fields) == 0 {
-		fmt.Printf("can't find proc with port %v", port)
+		fmt.Printf("GetPidByport can't find proc with port %v", port)
 		//w.Write([]byte("can't find proc with port " + port))
 		return ""
 	}
@@ -87,7 +87,6 @@ func GetPidByport(port string) string {
 
 	return pid
 }
-
 
 // 查找指定进程
 func IsProcessExist(port string) bool {
