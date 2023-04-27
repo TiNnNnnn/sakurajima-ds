@@ -39,12 +39,12 @@ func startshared(w http.ResponseWriter, r *http.Request) {
 }
 
 func handleStop(w http.ResponseWriter, r *http.Request) {
-	setupCORS(&w)
+	setupCORS(&w, r)
 	apiSvr.StopServer(w, r)
 }
 
 func handleStart(w http.ResponseWriter, r *http.Request) {
-	setupCORS(&w)
+	setupCORS(&w, r)
 	m := r.Method
 	if m == http.MethodPut {
 		serverType := api_gateway.GetstypeFromHeader(r.Header)
@@ -71,6 +71,10 @@ func handleLog(w http.ResponseWriter, r *http.Request) {
 	}
 	defer c.Close()
 
+	apiSvr.IsConnect = true
+
+	//apiSvr.MutiChan = make(chan *tinnraftpb.LogArgs, 1024)
+
 	fmt.Println("create a connect from api_server to client success")
 
 	go apiSvr.SendMutiLog(c)
@@ -80,6 +84,7 @@ func handleLog(w http.ResponseWriter, r *http.Request) {
 	for {
 		if <-apiSvr.StopChan {
 			fmt.Println("close the connect from api_server to client")
+			apiSvr.IsConnect = false
 			break
 		}
 	}
@@ -87,7 +92,7 @@ func handleLog(w http.ResponseWriter, r *http.Request) {
 }
 
 func handleClose(w http.ResponseWriter, r *http.Request) {
-	setupCORS(&w)
+	setupCORS(&w, r)
 	apiSvr.StopChan <- true
 }
 
@@ -109,24 +114,29 @@ func LogRpcServer() {
 }
 
 func ObjectHandler(w http.ResponseWriter, r *http.Request) {
-	setupCORS(&w)
+	setupCORS(&w, r)
 	objects.Handler(w, r, apiSvr)
 }
 
 func ConfigHandler(w http.ResponseWriter, r *http.Request) {
-	setupCORS(&w)
+	setupCORS(&w, r)
 	config.Handler(w, r, apiSvr)
 }
 
 func handleClear(w http.ResponseWriter, r *http.Request) {
-	setupCORS(&w)
+	setupCORS(&w, r)
 	apiSvr.ClearDates(w, r)
 }
 
-func setupCORS(w *http.ResponseWriter) {
+func setupCORS(w *http.ResponseWriter, r *http.Request) {
 	(*w).Header().Set("Access-Control-Allow-Origin", "*")
 	(*w).Header().Set("Access-Control-Allow-Methods", "*")
 	(*w).Header().Set("Access-Control-Allow-Headers", "*")
+
+	if r.Method == "OPTIONS" {
+		(*w).WriteHeader(http.StatusNoContent)
+		return
+	}
 }
 
 func main() {

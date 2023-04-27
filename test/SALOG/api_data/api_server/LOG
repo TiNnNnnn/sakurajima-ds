@@ -1,0 +1,25 @@
+=============== Apr 27, 2023 (CST) ===============
+16:10:50.879172 log@legend F·NumFile S·FileSize N·Entry C·BadEntry B·BadBlock Ke·KeyError D·DroppedEntry L·Level Q·SeqNum T·TimeElapsed
+16:10:50.888295 db@open opening
+16:10:50.888789 version@stat F·[] S·0B[] Sc·[]
+16:10:50.892610 db@janitor F·2 G·0
+16:10:50.892658 db@open done T·4.323266ms
+=============== Apr 27, 2023 (CST) ===============
+16:30:58.480933 log@legend F·NumFile S·FileSize N·Entry C·BadEntry B·BadBlock Ke·KeyError D·DroppedEntry L·Level Q·SeqNum T·TimeElapsed
+16:30:58.481913 version@stat F·[] S·0B[] Sc·[]
+16:30:58.481936 db@open opening
+16:30:58.481982 journal@recovery F·1
+16:30:58.482465 journal@recovery recovering @1
+16:30:58.496067 memdb@flush created L0@2 N·8 S·352B "CUR..KEY,v7":"acf_3,v8"
+16:30:58.496319 version@stat F·[1] S·352B[352B] Sc·[0.25]
+16:30:58.507761 db@janitor F·3 G·0
+16:30:58.507806 db@open done T·25.858496ms
+=============== Apr 27, 2023 (CST) ===============
+16:36:34.536380 log@legend F·NumFile S·FileSize N·Entry C·BadEntry B·BadBlock Ke·KeyError D·DroppedEntry L·Level Q·SeqNum T·TimeElapsed
+16:36:34.536630 version@stat F·[1] S·352B[352B] Sc·[0.25]
+16:36:34.536657 db@open opening
+16:36:34.536699 journal@recovery F·1
+16:36:34.537140 journal@recovery recovering @3
+16:36:34.538139 version@stat F·[1] S·352B[352B] Sc·[0.25]
+16:36:34.550740 db@janitor F·3 G·0
+16:36:34.550787 db@open done T·14.105853ms
