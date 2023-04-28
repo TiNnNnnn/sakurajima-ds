@@ -86,7 +86,7 @@ func MakeRaft(peers []*ClientEnd, me int, dbEngine storage_engine.KvStorage,
 
 	rf.apiGateClient = apigateclient
 
-	// initialize from state persisted before a crash
+	// initialize from state persisted before the last crash
 	rf.readPersist()
 
 	fmt.Println("-----------------------------------")
@@ -204,18 +204,6 @@ func (rf *Raft) readPersist() {
 
 // 选举与心跳触发器
 func (rf *Raft) ticker() {
-	// for !rf.IsKilled() {
-	// 	time.Sleep(rf.heartBeat)
-	// 	rf.mu.Lock()
-	// 	if rf.state == Leader {
-	// 		rf.appendEntries(true)
-	// 	}
-	// 	if time.Now().After(rf.electionTime) {
-	// 		rf.leaderElection()
-	// 	}
-	// 	rf.mu.Unlock()
-	// }
-
 	for !rf.IsKilled() {
 		select {
 		case <-rf.electionTimer.C:
@@ -225,7 +213,6 @@ func (rf *Raft) ticker() {
 		case <-rf.heartBeatTimer.C:
 			{
 				if rf.state == Leader {
-					//DLog("hahahhahahah")
 					rf.appendEntries(true)
 					rf.resetHeartTimer()
 				}

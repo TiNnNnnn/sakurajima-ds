@@ -15,11 +15,11 @@ func (rf *Raft) leaderElection() {
 	rf.ChangeRaftState(Candidate)
 	rf.votedFor = rf.me
 
-	rf.resetElectionTimer()
-	rf.persist()
-
 	term := rf.currentTerm
 	voteCounter := 1
+
+	rf.resetElectionTimer()
+	rf.persist()
 
 	candiate_lastLog := rf.log.GetPersistLastEntry()
 	// LOG
@@ -49,7 +49,7 @@ func (rf *Raft) leaderElection() {
 	var becomeLeader sync.Once
 	//向集群内其他server发送投票请求
 	for _, peer := range rf.peers {
-		if peer.id != uint64(rf.me) {
+		if int(peer.id) != rf.me {
 			go rf.candidateRequestVote(int(peer.id), &args, &voteCounter, &becomeLeader)
 		}
 	}

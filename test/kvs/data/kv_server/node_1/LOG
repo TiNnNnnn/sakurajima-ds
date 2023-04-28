@@ -1,0 +1,36 @@
+=============== Apr 28, 2023 (CST) ===============
+12:56:55.064321 log@legend F·NumFile S·FileSize N·Entry C·BadEntry B·BadBlock Ke·KeyError D·DroppedEntry L·Level Q·SeqNum T·TimeElapsed
+12:56:55.074265 db@open opening
+12:56:55.074920 version@stat F·[] S·0B[] Sc·[]
+12:56:55.081705 db@janitor F·2 G·0
+12:56:55.081752 db@open done T·7.448894ms
+=============== Apr 28, 2023 (CST) ===============
+13:00:07.179868 log@legend F·NumFile S·FileSize N·Entry C·BadEntry B·BadBlock Ke·KeyError D·DroppedEntry L·Level Q·SeqNum T·TimeElapsed
+13:00:07.180052 version@stat F·[] S·0B[] Sc·[]
+13:00:07.180062 db@open opening
+13:00:07.180106 journal@recovery F·1
+13:00:07.181035 journal@recovery recovering @1
+13:00:07.193616 memdb@flush created L0@2 N·3 S·264B "\x11\x11\x19..\x00\x00\x00,v2":"\x19I,v3"
+13:00:07.193878 version@stat F·[1] S·264B[264B] Sc·[0.25]
+13:00:07.209655 db@janitor F·3 G·0
+13:00:07.209707 db@open done T·29.630554ms
+=============== Apr 28, 2023 (CST) ===============
+13:02:00.984530 log@legend F·NumFile S·FileSize N·Entry C·BadEntry B·BadBlock Ke·KeyError D·DroppedEntry L·Level Q·SeqNum T·TimeElapsed
+13:02:00.985529 version@stat F·[1] S·264B[264B] Sc·[0.25]
+13:02:00.985541 db@open opening
+13:02:00.985585 journal@recovery F·1
+13:02:00.986009 journal@recovery recovering @3
+13:02:00.992553 memdb@flush created L0@5 N·3 S·265B "\x11\x11\x19..\x00\x00\x00,v6":"\x19I,v7"
+13:02:00.992794 version@stat F·[2] S·529B[529B] Sc·[0.50]
+13:02:01.003596 db@janitor F·4 G·0
+13:02:01.003637 db@open done T·18.086608ms
+=============== Apr 28, 2023 (CST) ===============
+13:02:24.600367 log@legend F·NumFile S·FileSize N·Entry C·BadEntry B·BadBlock Ke·KeyError D·DroppedEntry L·Level Q·SeqNum T·TimeElapsed
+13:02:24.600541 version@stat F·[2] S·529B[529B] Sc·[0.50]
+13:02:24.600552 db@open opening
+13:02:24.600594 journal@recovery F·1
+13:02:24.601128 journal@recovery recovering @6
+13:02:24.611527 memdb@flush created L0@8 N·3 S·262B "\x11\x11\x19..\x00\x00\x00,v10":"\x19I,v11"
+13:02:24.611791 version@stat F·[3] S·791B[791B] Sc·[0.75]
+13:02:24.624689 db@janitor F·5 G·0
+13:02:24.624756 db@open done T·24.189413ms

@@ -42,18 +42,22 @@ func (rf *Raft) candidateRequestVote(serverId int, args *tinnraftpb.RequestVoteA
 	rf.apiGateClient.SendLogToGate(raftlog)
 
 	DLog("[%v]: term %v | send request vote to %v ", rf.me, rf.currentTerm, serverId)
-	reply, err := rf.sendRequestVote(serverId, args)
+	reply, err := (*rf.peers[serverId].raftServiceCli).RequestVote(context.Background(), args)
 	if err != nil {
 		DLog("[%v]: term %v | send request vote to %d failed! %v", rf.me, rf.currentTerm, serverId, err.Error())
 		return
 	}
+
+	if reply == nil {
+		return
+	}
+
 	rf.mu.Lock()
 	defer rf.mu.Unlock()
 
 	//发现fllower的term比自己大
 	if reply.Term > args.Term {
 		rf.ChangeRaftState(Follower)
-		rf.setNewTerm(int(reply.Term))
 		rf.currentTerm = int(reply.Term)
 		rf.votedFor = -1
 		rf.persist()
@@ -76,7 +80,6 @@ func (rf *Raft) candidateRequestVote(serverId int, args *tinnraftpb.RequestVoteA
 
 	//已经获得超过半数的选票
 	if *voteCounter > len(rf.peers)/2 && rf.currentTerm == int(args.Term) && rf.state == Candidate {
-
 		//LOG
 		raftlog := &tinnraftpb.LogArgs{
 			Op:       tinnraftpb.LogOp_ToLeader,
@@ -95,6 +98,7 @@ func (rf *Raft) candidateRequestVote(serverId int, args *tinnraftpb.RequestVoteA
 			rf.ChangeRaftState(Leader)
 			//发送心跳给其他server
 			rf.appendEntries(true)
+			*voteCounter = 0
 		})
 	}
 }
@@ -108,7 +112,7 @@ func (rf *Raft) HandleRequestVote(args *tinnraftpb.RequestVoteArgs, reply *tinnr
 	//发现候选人的term比自己小，拒绝投票
 	if int(args.Term) < rf.currentTerm ||
 		(args.Term == int64(rf.currentTerm) && rf.votedFor != -1 && rf.votedFor != int(args.CandidateId)) {
-		DLog("[%v]: term %v | refuse vote for [%v]", rf.me, rf.currentTerm, rf.votedFor)
+		DLog("[%v]: term %v | refuse vote for [%v]", rf.me, rf.currentTerm, args.CandidateId)
 		reply.Term = int64(rf.currentTerm)
 		reply.VoteGranted = false
 		return
@@ -131,8 +135,7 @@ func (rf *Raft) HandleRequestVote(args *tinnraftpb.RequestVoteArgs, reply *tinnr
 	if (rf.votedFor == -1 || rf.votedFor == int(args.CandidateId)) && upToDate && rf.me != int(args.CandidateId) {
 		reply.VoteGranted = true
 		rf.votedFor = int(args.CandidateId)
-		//持久化
-		rf.persist()
+
 		rf.resetElectionTimer()
 
 		//LOG
@@ -148,15 +151,15 @@ func (rf *Raft) HandleRequestVote(args *tinnraftpb.RequestVoteArgs, reply *tinnr
 		}
 		rf.apiGateClient.SendLogToGate(raftlog)
 
-		DLog("[%v]: term %v | vote for [%v]", rf.me, rf.currentTerm, rf.votedFor)
+		DLog("[%v]: term %v | vote for [%v]", rf.me, rf.currentTerm, args.CandidateId)
 	} else {
 		reply.VoteGranted = false
-		DLog("[%v]: term %v | refuse vote for [%v]", rf.me, rf.currentTerm, rf.votedFor)
+		DLog("[%v]: term %v | refuse vote for [%v]", rf.me, rf.currentTerm, args.CandidateId)
 	}
 	reply.Term = int64(rf.currentTerm)
 }
 
-func (rf *Raft) sendRequestVote(server int, args *tinnraftpb.RequestVoteArgs) (*tinnraftpb.RequestVoteReply, error) {
-	//test 04-24
-	return (*rf.peers[server].raftServiceCli).RequestVote(context.Background(), args)
-}
+// func (rf *Raft) sendRequestVote(server int, args *tinnraftpb.RequestVoteArgs) (*tinnraftpb.RequestVoteReply, error) {
+// 	//test 04-24
+// 	return (*rf.peers[server].raftServiceCli).RequestVote(context.Background(), args)
+// }

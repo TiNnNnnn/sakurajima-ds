@@ -37,7 +37,8 @@ func main() {
 		}
 		_, err := c.DoPut(context.Background(), args)
 		if err != nil {
-			log.Fatalf("err: %v", err)
+			log.Printf("err: %v", err)
+			return
 		}
 		fmt.Printf("success")
 
@@ -48,8 +49,9 @@ func main() {
 		}
 		r, err := c.DoGet(context.Background(), args)
 		if err != nil {
-			log.Fatalf("err: %v", err)
+			log.Printf("err: %v", err)
+			return
 		}
-		fmt.Printf("vlaue: %v", r.Value)
+		fmt.Printf(r.Value)
 	}
 }

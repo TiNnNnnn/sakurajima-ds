@@ -34,7 +34,7 @@ import (
 
 func (rf *Raft) appendEntries(isHeartbeat bool) {
 	for _, peer := range rf.peers {
-
+ 
 		if int(peer.id) == rf.me {
 			//防止Leader节点无意义的选举发送
 			rf.resetElectionTimer()
@@ -56,7 +56,7 @@ func (rf *Raft) appendEntries(isHeartbeat bool) {
 				LastIncludeTerm:   int64(firstLog.Term),
 				Data:              rf.ReadSnapshot(),
 			}
-			//rf.mu.Unlock()
+
 			go rf.leaderSendSnapshots(int(peer.id), snapShotArgs)
 
 		} else {
@@ -118,8 +118,16 @@ func (rf *Raft) leaderSendEntries(serverId int, args *tinnraftpb.AppendEntriesAr
 		return
 	}
 
+	if reply == nil {
+		return
+	}
+
 	rf.mu.Lock()
 	defer rf.mu.Unlock()
+
+	if rf.state != Leader || rf.currentTerm != int(args.Term) {
+		return
+	}
 
 	if int(reply.Term) > rf.currentTerm {
 		rf.ChangeRaftState(Follower)
@@ -128,6 +136,7 @@ func (rf *Raft) leaderSendEntries(serverId int, args *tinnraftpb.AppendEntriesAr
 		rf.persist()
 		return
 	}
+
 	if rf.state == Leader && int(args.Term) == rf.currentTerm {
 		if reply.Success {
 			//追加日志成功

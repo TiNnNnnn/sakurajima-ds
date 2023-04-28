@@ -43,6 +43,8 @@ func (log *Log) ReadRaftState() (curTerm int64, votedFor int64) {
 	return rfState.CurrentTerm, rfState.VotedFor
 }
 
+
+
 // 从存储引擎中读取第一条日志
 func (log *Log) GetPersistFirstEntry() *tinnraftpb.Entry {
 	log.mu.Lock()
