@@ -15,9 +15,8 @@ const (
 	port = ":10051"
 )
 
-
 type server struct {
-	stm map[string]string
+	stm      map[string]string
 	pb.UnimplementedKvServiceServer
 }
 
@@ -26,7 +25,7 @@ type server struct {
 */
 func MakeServer() *server {
 	newSvr := server{
-		stm: map[string]string{},
+		stm:      map[string]string{},
 	}
 	return &newSvr
 }
@@ -36,6 +35,7 @@ func MakeServer() *server {
 */
 func (s *server) DoPut(ctx context.Context, args *pb.PutArgs) (*pb.PutReply, error) {
 
+	//user write
 	reply := pb.PutReply{}
 	key, value := args.Key, args.Value
 
@@ -49,8 +49,25 @@ func (s *server) DoPut(ctx context.Context, args *pb.PutArgs) (*pb.PutReply, err
 	log.Printf("recv the key: %v value: %v", key, value)
 	s.stm[args.Key] = args.Value
 
+	reply.Success = "true"
+
 	return &reply, nil
 
+}
+
+func (s *server) DoGet(ctx context.Context, args *pb.GetArgs) (*pb.GetReply, error) {
+	/*
+		user write
+	*/
+	reply := pb.GetReply{}
+	key := args.Key
+
+	value := s.stm[key]
+	log.Printf("get the value:%v ", value)
+
+	reply.Value = value
+
+	return &reply, nil
 }
 
 /*
