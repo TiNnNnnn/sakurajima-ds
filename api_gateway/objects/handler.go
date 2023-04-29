@@ -1,6 +1,7 @@
 package api_gateway
 
 import (
+	"encoding/json"
 	"fmt"
 	"log"
 	"net/http"
@@ -9,6 +10,11 @@ import (
 	"strconv"
 	"strings"
 )
+
+type CmdReply struct {
+	Success bool
+	Msg     []byte
+}
 
 func Handler(w http.ResponseWriter, r *http.Request, as *api_gateway.ApiLogServer) {
 	if len(strings.Split(r.URL.EscapedPath(), "/")) < 2 {
@@ -74,6 +80,13 @@ func put(w http.ResponseWriter, r *http.Request, as *api_gateway.ApiLogServer) {
 		return
 	}
 	fmt.Printf("put data sucess\n")
+
+	res := &CmdReply{
+		Success: true,
+		Msg:     []byte("put kv [" + key + ":" + value + "] success"),
+	}
+	resBytes, _ := json.Marshal(res)
+	w.Write(resBytes)
 }
 
 func get(w http.ResponseWriter, r *http.Request, as *api_gateway.ApiLogServer) {
@@ -128,7 +141,15 @@ func query(w http.ResponseWriter, r *http.Request, as *api_gateway.ApiLogServer)
 	datas := skvclient.GetBucketDatas(gid, bids)
 
 	log.Printf("get buckets data: %v", datas)
+
 	w.Write([]byte("get buckets data success,data:" + datas))
+
+	res := &CmdReply{
+		Success: true,
+		Msg:     []byte(datas),
+	}
+	resBytes, _ := json.Marshal(res)
+	w.Write(resBytes)
 
 }
 
