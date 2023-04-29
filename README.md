@@ -1,4 +1,4 @@
-分布式对象存储
+分布式kv存储
 
 服务模块:
 1.apigateway
@@ -10,10 +10,6 @@ test:
 1.kvserver
 2.configserver
 
-1. 上传流程
-
-
-2. 读取流程
 
 
 
