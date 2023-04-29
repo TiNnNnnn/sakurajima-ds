@@ -7,7 +7,9 @@ import (
 	"os"
 	"os/exec"
 	"strconv"
+	"testing"
 	"time"
+
 	"github.com/shirou/gopsutil/process"
 )
 
@@ -17,6 +19,12 @@ var pid = -1
 func main() {
 	//testLab1_Put()
 	testLab1_Get()
+}
+
+func Test_test(t *testing.T) {
+	stm := make(map[string]string)
+	k := stm["hah"]
+	fmt.Println(k)
 }
 
 // test put
@@ -71,7 +79,7 @@ func testLab1_Get() {
 	if err2 != nil {
 		fmt.Println("failed to begin the clientserver!")
 	}
-	
+
 	select {
 	case v := <-LogChan:
 		fmt.Println("client output:" + v)
