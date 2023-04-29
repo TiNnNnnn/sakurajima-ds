@@ -5,7 +5,7 @@ import (
 	"context"
 	"encoding/gob"
 	"encoding/json"
-	api_gateway "sakurajima-ds/api_gateway_2"
+	api_gateway "sakurajima-ds/api_gateway"
 	"sakurajima-ds/common"
 	"sakurajima-ds/storage_engine"
 	"sakurajima-ds/tinnraft"
@@ -19,7 +19,6 @@ import (
 /*
 kv存储服务器
 */
-
 var DnsMap = map[int]string{
 	0: "127.0.0.1:10010",
 	1: "127.0.0.1:10011",

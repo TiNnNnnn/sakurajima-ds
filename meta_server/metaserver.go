@@ -5,7 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"log"
-	api_gateway "sakurajima-ds/api_gateway_2"
+	api_gateway "sakurajima-ds/api_gateway"
 	"sakurajima-ds/common"
 	"sakurajima-ds/storage_engine"
 	"sakurajima-ds/tinnraft"

@@ -4,7 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
-	api_gateway "sakurajima-ds/api_gateway_2"
+	api_gateway "sakurajima-ds/api_gateway"
 	"sakurajima-ds/common"
 	"sakurajima-ds/config_server"
 	"sakurajima-ds/storage_engine"
@@ -425,9 +425,11 @@ func (s *ShardKV) DoCommand(ctx context.Context, args *tinnraftpb.CommandArgs) (
 
 // 重写DoBucketRpc方法（被客户端直接调用）
 func (s *ShardKV) DoBucket(ctx context.Context, args *tinnraftpb.BucketOpArgs) (*tinnraftpb.BucketOpReply, error) {
-	
+
 	reply := &tinnraftpb.BucketOpReply{}
 	if _, isLeader := s.tinnrf.GetState(); !isLeader {
+		reply.LeaderId = s.tinnrf.GetLeaderId()
+		reply.ErrMsg = "ErrorWrongLeader"
 		return reply, errors.New("ErrorWrongLeader")
 	}
 
@@ -437,12 +439,14 @@ func (s *ShardKV) DoBucket(ctx context.Context, args *tinnraftpb.BucketOpArgs) (
 			s.mu.RLock()
 			if s.curConfig.Version < int(args.ConfigVersion) {
 				s.mu.RUnlock()
+				reply.ErrMsg = "ErrorNotReady"
 				return reply, errors.New("ErrorNotReady")
 			}
 
 			bucketdatas := map[int]map[string]string{}
 			for _, bucketId := range args.BucketIds {
 				datas, err := s.stm[int(bucketId)].DeepCopy() //DeepCopy
+				tinnraft.DLog("-------------datas %v", datas)
 				if err != nil {
 					s.mu.RUnlock()
 					return reply, err
@@ -459,6 +463,7 @@ func (s *ShardKV) DoBucket(ctx context.Context, args *tinnraftpb.BucketOpArgs) (
 			s.mu.RLock()
 			if int64(s.curConfig.Version) > args.ConfigVersion {
 				s.mu.RUnlock()
+				reply.ErrMsg = "ErrorNotReady"
 				return reply, nil
 			}
 			s.mu.RUnlock()
@@ -471,6 +476,7 @@ func (s *ShardKV) DoBucket(ctx context.Context, args *tinnraftpb.BucketOpArgs) (
 
 			_, _, isLeader := s.tinnrf.Propose(comandArgsBytes)
 			if !isLeader {
+				reply.ErrMsg = "ErrorWrongLeader"
 				return reply, nil
 			}
 		}
@@ -479,6 +485,7 @@ func (s *ShardKV) DoBucket(ctx context.Context, args *tinnraftpb.BucketOpArgs) (
 			s.mu.RLock()
 			if int64(s.curConfig.Version) > args.ConfigVersion {
 				s.mu.RUnlock()
+				reply.ErrMsg = "ErrorNotReady"
 				return reply, nil
 			}
 			s.mu.RUnlock()
@@ -491,6 +498,7 @@ func (s *ShardKV) DoBucket(ctx context.Context, args *tinnraftpb.BucketOpArgs) (
 
 			_, _, isLeader := s.tinnrf.Propose(commandArgsBytes)
 			if !isLeader {
+				reply.ErrMsg = "ErrorWrongLeader"
 				return reply, nil
 			}
 		}

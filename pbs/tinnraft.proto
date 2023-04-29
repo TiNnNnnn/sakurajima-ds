@@ -156,6 +156,7 @@ message BucketOpReply{
 	int64 ConfigVersion = 1;
 	bytes BucketData = 2;
 	string ErrMsg = 3;
+	int64 LeaderId = 4;
 }
 
 //数据块描述

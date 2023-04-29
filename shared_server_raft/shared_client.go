@@ -59,7 +59,7 @@ func (kvCli *ShardKVClient) Put(key string, value string) error {
 
 func (kvCli *ShardKVClient) GetBucketDatas(groupId int, bucketIds []int64) string {
 	return kvCli.SendBucketRpcCommand(&tinnraftpb.BucketOpArgs{
-		BucketOpType:  tinnraftpb.BucketOpType(tinnraftpb.OpType_DeleteBuckets),
+		BucketOpType:  tinnraftpb.BucketOpType_GetData,
 		GroupId:       int64(groupId),
 		ConfigVersion: int64(kvCli.config.Version),
 		BucketIds:     bucketIds,
@@ -68,7 +68,7 @@ func (kvCli *ShardKVClient) GetBucketDatas(groupId int, bucketIds []int64) strin
 
 func (kvCli *ShardKVClient) InsertBucketDatas(gid int, bucketIds []int64, datas []byte) string {
 	return kvCli.SendBucketRpcCommand(&tinnraftpb.BucketOpArgs{
-		BucketOpType:  tinnraftpb.BucketOpType(tinnraftpb.OpType_InsertBuckets),
+		BucketOpType:  tinnraftpb.BucketOpType_AddData,
 		BucketsData:   datas,
 		GroupId:       int64(gid),
 		BucketIds:     bucketIds,
@@ -169,13 +169,37 @@ func (kvCli *ShardKVClient) SendBucketRpcCommand(args *tinnraftpb.BucketOpArgs) 
 				reply, err := (*kvCli.client.GetRaftServiceCli()).DoBucket(context.Background(), args)
 				if err == nil {
 					if reply != nil {
+						tinnraft.DLog("hahahah__1")
 						return string(reply.BucketData)
 					} else {
+						tinnraft.DLog("hahahah__2")
 						return ""
 					}
 				} else {
-					tinnraft.DLog("send commend to server error: %v", err.Error())
-					return ""
+					tinnraft.DLog("send commend to server error,", err.Error())
+					tinnraft.DLog("hahahah")
+
+					if reply.ErrMsg == "ErrorWrongLeader" {
+						tinnraft.DLog("get the leader id: %v", reply.LeaderId)
+						kvCli.client = tinnraft.MakeClientEnd(99, servers[reply.LeaderId])
+						reply, err = (*kvCli.client.GetRaftServiceCli()).DoBucket(context.Background(), args)
+						if err != nil {
+							tinnraft.DLog("leader in sharedserver has down: %v", err.Error())
+							return ""
+						}
+						if reply.ErrMsg == "" && reply != nil {
+							return string(reply.BucketData)
+						} else if reply.ErrMsg == "ErrorNotReady" {
+							tinnraft.DLog("ErrNotReady: %v", err.Error())
+							return ""
+						} else if reply.ErrMsg == "ErrorCopyError" {
+							tinnraft.DLog("ErrorCopyError: %v", err.Error())
+							return ""
+						}
+					} else {
+						return ""
+					}
+
 				}
 			}
 		}

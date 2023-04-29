@@ -7,11 +7,12 @@ import (
 	"net"
 	"net/http"
 	"os"
-	api_gateway "sakurajima-ds/api_gateway_2"
-	config "sakurajima-ds/api_gateway_2/config"
-	objects "sakurajima-ds/api_gateway_2/objects"
+	api_gateway "sakurajima-ds/api_gateway"
+	config "sakurajima-ds/api_gateway/config"
+	objects "sakurajima-ds/api_gateway/objects"
 	"sakurajima-ds/common"
 	"sakurajima-ds/tinnraftpb"
+	"strings"
 
 	"github.com/gorilla/websocket"
 	"google.golang.org/grpc"
@@ -140,19 +141,18 @@ func setupCORS(w *http.ResponseWriter, r *http.Request) {
 }
 
 func main() {
-
-	if len(os.Args) > 3 {
-		fmt.Println("usage: apigateway [api_gatway addr] [log_server addr]")
-		fmt.Println("----default args---------------")
-		fmt.Println("api_gatway addr: 0.0.0.0:10055")
-		fmt.Println("log_server:    : 127.0.0.1:10030")
-		fmt.Println("-------------------------------")
-		return
-	}
-
 	common.Getstartlogo()
 
+	fmt.Println("========================================================================================")
+	fmt.Println("usage: apigateway [api_gatway addr] [log_server addr] [cfgserver_path,sharedserver_path]")
+	fmt.Println("----default args---------------")
+	fmt.Println("api_gatway addr: 0.0.0.0:10055")
+	fmt.Println("log_server:    : 127.0.0.1:10030")
+	fmt.Println("-------------------------------")
+	fmt.Println("========================================================================================")
+
 	gateAddr := "0.0.0.0:10055"
+
 	if len(os.Args) == 2 {
 		gateAddr = os.Args[1]
 	}
@@ -160,6 +160,17 @@ func main() {
 	if len(os.Args) == 3 {
 		gateAddr = os.Args[1]
 		logrpcAddr = os.Args[2]
+	}
+
+	if len(os.Args) == 4 {
+		gateAddr = os.Args[1]
+		logrpcAddr = os.Args[2]
+		pathList := strings.Split(os.Args[3], ",")
+		if len(pathList) != 2 {
+			fmt.Printf("wrong path with cfgserver and sharedserver!")
+			return
+		}
+		apiSvr.ServerPath = append(apiSvr.ServerPath, pathList...)
 	}
 
 	var addr = flag.String("addr", gateAddr, "http service address")

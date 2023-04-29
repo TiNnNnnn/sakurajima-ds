@@ -2,7 +2,7 @@ package tinnraft
 
 import (
 	"fmt"
-	api_gateway "sakurajima-ds/api_gateway_2"
+	api_gateway "sakurajima-ds/api_gateway"
 	"sakurajima-ds/storage_engine"
 	"sakurajima-ds/tinnraftpb"
 	"strconv"
@@ -162,7 +162,6 @@ func (rf *Raft) AppendNewCommand(command []byte) *tinnraftpb.Entry {
 	}
 	rf.log.PersistAppend(newEntry)
 	rf.persister.PersistRaftState(int64(rf.currentTerm), int64(rf.votedFor))
-	//DLog("[%v]: term %v start %v", rf.me, rf.currentTerm, rf.log)
 	return newEntry
 }
 
