@@ -31,6 +31,9 @@ type ShardKV struct {
 	lastConfig  config_server.Config //上一版本的集群配置表
 	curConfig   config_server.Config //当前版本的集群配置表
 
+	//importing_slots_from [common.BucketsNum]int //从groupId cluster import kv
+	//migrating_slots_to   [common.BucketsNum]int //向groupId cluster migrate kv
+
 	stm map[int]*Bucket //当前服务器的桶数据
 
 	engine storage_engine.KvStorage
@@ -40,6 +43,9 @@ type ShardKV struct {
 	stopApplyCh chan interface{}
 
 	apiGateClient *api_gateway.ApiGatwayClient
+	sharedCli     *ShardKVClient
+
+	migrateCond []*sync.Cond
 
 	tinnraftpb.UnimplementedRaftServiceServer
 }
@@ -76,7 +82,9 @@ func MakeShardKVServer(peerMaps map[int]string, nodeId int, groupId int, configS
 		engine:        newengine,
 		notifyChans:   map[int]chan *tinnraftpb.CommandReply{},
 		configCli:     config_server.MakeCfgSvrClient(99, strings.Split(configSvrAddrs, ",")),
+		sharedCli:     MakeSharedKvClient(""),
 		apiGateClient: apigateclient,
+		migrateCond:   make([]*sync.Cond, common.BucketsNum),
 	}
 
 	//初始化buckets
@@ -93,6 +101,28 @@ func MakeShardKVServer(peerMaps map[int]string, nodeId int, groupId int, configS
 
 	return shardkv
 
+}
+
+func (s *ShardKV) MigrateAction(bucketId int, gid int) {
+
+	datas, err := s.stm[bucketId].KvDb.GetAllPrefixKey(strconv.Itoa(bucketId))
+	if err != nil {
+		tinnraft.DLog("get all kv from bucket %v failed", bucketId)
+		return
+	}
+
+	if len(datas) == 0 {
+		tinnraft.DLog("bucket %v is empty,migrate finish", bucketId)
+	}
+
+	for k, v := range datas { //每次迁移一条
+		dataSingleMap := make(map[int]map[string]string)
+		kv := make(map[string]string)
+		kv[k] = v
+		dataSingleMap[bucketId] = kv
+		dataSingleMapBytes, _ := json.Marshal(dataSingleMap)
+		s.sharedCli.InsertBucketDatas(gid, []int64{int64(bucketId)}, dataSingleMapBytes)
+	}
 }
 
 func (s *ShardKV) IsKilled() bool {
@@ -327,15 +357,20 @@ func (s *ShardKV) ApplingToStm(done <-chan interface{}) {
 						if s.curConfig.Buckets[i] != s.groupId && nextConfig.Buckets[i] == s.groupId {
 							groupId := s.curConfig.Buckets[i]
 							if groupId != 0 {
-								s.stm[i].Status = Runing //启动该桶
-								tinnraft.DLog("chang the bucket %d status to RUNNING", i)
+								s.stm[i].Status = Importing //槽转移目标节点桶
+								tinnraft.DLog("chang the bucket %d status to IMPORTING", i)
 							}
 						}
 						if s.curConfig.Buckets[i] == s.groupId && nextConfig.Buckets[i] != s.groupId {
 							groupId := nextConfig.Buckets[i]
 							if groupId != 0 {
-								s.stm[i].Status = Stopped //关闭该桶
-								tinnraft.DLog("chang the bucket %d status to STOPPED", i)
+								s.stm[i].Status = Migrating //槽转移源节点桶
+
+								// if s.tinnrf.GetLeaderId() == int64(s.nodeId) {
+								// 	go s.MigrateAction(i, nextConfig.Buckets[i])
+								// }
+
+								tinnraft.DLog("chang the bucket %d status to MIGRATING", i)
 							}
 						}
 					}
@@ -446,7 +481,7 @@ func (s *ShardKV) DoBucket(ctx context.Context, args *tinnraftpb.BucketOpArgs) (
 			bucketdatas := map[int]map[string]string{}
 			for _, bucketId := range args.BucketIds {
 				datas, err := s.stm[int(bucketId)].DeepCopy() //DeepCopy
-				tinnraft.DLog("-------------datas %v", datas)
+				//tinnraft.DLog("-------------datas %v", datas)
 				if err != nil {
 					s.mu.RUnlock()
 					return reply, err

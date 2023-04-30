@@ -124,6 +124,12 @@ message ConfigArgs{
 	int64 CommandId = 8;
 }
 
+message MigrateBucket{
+	int64 bucketId = 1;
+	int64 from = 2; //源节点组
+	int64 to = 3; //目标节点组
+}
+
 message ServerConfig{
 	int64 ConfigVersion = 1;    //配置信息版本
 	repeated int64 Buckets = 2; //bucket数组
@@ -135,6 +141,8 @@ message ConfigReply{
 	ServerConfig Config = 2;
 	int64 LeaderId = 3;
 	int64 err_code = 4;
+	bool ismigrate = 5;
+	MigrateBucket mb =6;
 }
 
 // shared服务器分组相关操作
@@ -157,6 +165,17 @@ message BucketOpReply{
 	bytes BucketData = 2;
 	string ErrMsg = 3;
 	int64 LeaderId = 4;
+}
+
+message MigrateArgs{
+	bytes BucketData= 1;
+	int64 BucketId = 2;
+}
+
+message MigrateReply{
+	bool Success = 1;
+	int64 ErrCode = 2;
+	int64 ErrMsg = 3;
 }
 
 //数据块描述

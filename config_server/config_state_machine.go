@@ -146,7 +146,7 @@ func (stm *ConfigStateMachine) Move(bucketId int, groupId int) error {
 		CopyGroup(lastConf.Groups),
 		lastConf.LeaderId,
 	}
-	//bucketId号桶 对于到 groupId号存储集群
+	//bucketId号桶 对应到 groupId号存储集群
 	newConf.Buckets[bucketId] = groupId
 	//持久化新版本Config
 	newConfigBytes, _ := json.Marshal(newConf)

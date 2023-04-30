@@ -85,6 +85,8 @@ func (kvCli *ShardKVClient) DeleteBucketDatas(gid int, bucketIds []int64) string
 	})
 }
 
+
+
 func (kvCli *ShardKVClient) SendRpcCommand(args *tinnraftpb.CommandArgs) (string, error) {
 	bucket_id := common.KeyToBucketId(args.Key)
 	log.Printf("caculated bucketId: %v\n", bucket_id)
@@ -169,15 +171,12 @@ func (kvCli *ShardKVClient) SendBucketRpcCommand(args *tinnraftpb.BucketOpArgs) 
 				reply, err := (*kvCli.client.GetRaftServiceCli()).DoBucket(context.Background(), args)
 				if err == nil {
 					if reply != nil {
-						tinnraft.DLog("hahahah__1")
 						return string(reply.BucketData)
 					} else {
-						tinnraft.DLog("hahahah__2")
 						return ""
 					}
 				} else {
 					tinnraft.DLog("send commend to server error,", err.Error())
-					tinnraft.DLog("hahahah")
 
 					if reply.ErrMsg == "ErrorWrongLeader" {
 						tinnraft.DLog("get the leader id: %v", reply.LeaderId)

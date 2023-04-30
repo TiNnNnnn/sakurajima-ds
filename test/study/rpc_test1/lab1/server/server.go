@@ -16,7 +16,7 @@ const (
 )
 
 type server struct {
-	stm      map[string]string
+	stm map[string]string
 	pb.UnimplementedKvServiceServer
 }
 
@@ -25,7 +25,7 @@ type server struct {
 */
 func MakeServer() *server {
 	newSvr := server{
-		stm:      map[string]string{},
+		stm: map[string]string{},
 	}
 	return &newSvr
 }
@@ -74,19 +74,36 @@ func (s *server) DoGet(ctx context.Context, args *pb.GetArgs) (*pb.GetReply, err
 启动server
 */
 func startServer() {
-
 	newSvr := MakeServer()
-	lis, err := net.Listen("tcp", port)
+
+	// 直接使用 ":port" 可以避免硬编码端口号
+	lis, err := net.Listen("tcp", ":"+port)
 	if err != nil {
-		log.Fatalf("failed to listen: %v", err)
+		log.Fatal("failed to listen:", err)
 	}
+	defer lis.Close()
+
 	s := grpc.NewServer()
+
+	// 添加一些可选的服务端选项
+	// opts := []grpc.ServerOption{...}
+	// s := grpc.NewServer(opts...)
+
 	pb.RegisterKvServiceServer(s, newSvr)
 
-	log.Printf("server listening at %v", lis.Addr())
-	if err := s.Serve(lis); err != nil {
-		log.Fatalf("failed to serve: %v", err)
-	}
+	// 使用 context 控制服务器的生命周期
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	go func() {
+		select {
+		case <-ctx.Done():
+			s.Stop()
+		}
+	}()
+
+	// 使用 log.Fatal() 函数来输出错误消息并退出程序
+	log.Fatal(s.Serve(lis))
 }
 
 func main() {

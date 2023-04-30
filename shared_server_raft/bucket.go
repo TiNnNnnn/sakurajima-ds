@@ -11,6 +11,8 @@ type bucketStatus uint8
 const (
 	Runing bucketStatus = iota
 	Stopped
+	Migrating
+	Importing
 )
 
 type Bucket struct {

@@ -136,6 +136,19 @@ func (cs *ConfigServer) ApplingToStm(done <-chan interface{}) {
 				}
 				err = cs.stm.Leave(groupIds)
 			case tinnraftpb.ConfigOpType_Move: //Move操作
+				conf, err = cs.stm.Query(int(args.ConfigVersion))
+				if err != nil {
+					reply.ErrMsg = err.Error()
+				}
+				//judge isneeded to migrate buckets(slots)
+				if conf.Buckets[args.BucketId] != 0 && conf.Buckets[args.BucketId] != int(args.GroupId) {
+					reply.Mb = &tinnraftpb.MigrateBucket{
+						BucketId: args.BucketId,
+						From:     int64(conf.Buckets[args.BucketId]),
+						To:       args.GroupId,
+					}
+					reply.Ismigrate = true
+				}
 				err = cs.stm.Move(int(args.BucketId), int(args.GroupId))
 			case tinnraftpb.ConfigOpType_Query: //Query操作
 				conf, err = cs.stm.Query(int(args.ConfigVersion))
