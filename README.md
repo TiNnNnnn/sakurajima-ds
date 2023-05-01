@@ -1,3 +1,5 @@
+![SAKURAJIMA-DS](https://gitee.com/ornamrr/sakurajima-ds/blob/master/logo.png)
+
 分布式kv存储
 
 服务模块:
