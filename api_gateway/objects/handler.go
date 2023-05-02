@@ -142,7 +142,7 @@ func query(w http.ResponseWriter, r *http.Request, as *api_gateway.ApiLogServer)
 
 	log.Printf("get buckets data: %v", datas)
 
-	w.Write([]byte("get buckets data success,data:" + datas))
+	//w.Write([]byte("get buckets data success,data:" + datas))
 
 	res := &CmdReply{
 		Success: true,

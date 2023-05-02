@@ -460,11 +460,13 @@ func (s *ShardKV) DoCommand(ctx context.Context, args *tinnraftpb.CommandArgs) (
 func (s *ShardKV) DoBucket(ctx context.Context, args *tinnraftpb.BucketOpArgs) (*tinnraftpb.BucketOpReply, error) {
 
 	reply := &tinnraftpb.BucketOpReply{}
+
 	if _, isLeader := s.tinnrf.GetState(); !isLeader {
 		reply.LeaderId = s.tinnrf.GetLeaderId()
 		reply.ErrMsg = "ErrorWrongLeader"
 		reply.ErrCode = common.ErrCodeWrongLeader
-		return reply, errors.New("ErrorWrongLeader")
+		tinnraft.DLog("reply:", reply)
+		return reply, nil
 	}
 
 	switch args.BucketOpType {
@@ -475,7 +477,7 @@ func (s *ShardKV) DoBucket(ctx context.Context, args *tinnraftpb.BucketOpArgs) (
 				s.mu.RUnlock()
 				reply.ErrMsg = "ErrorNotReady"
 				reply.ErrCode = common.ErrCodeNotReady
-				return reply, errors.New("ErrorNotReady")
+				return reply, nil
 			}
 
 			bucketdatas := map[int]map[string]string{}
@@ -487,7 +489,7 @@ func (s *ShardKV) DoBucket(ctx context.Context, args *tinnraftpb.BucketOpArgs) (
 
 					reply.ErrMsg = "ErrorCopyBuckets"
 					reply.ErrCode = common.ErrCodeCopyBuckets
-					return reply, err
+					return reply, nil
 				}
 				bucketdatas[int(bucketId)] = datas
 			}
@@ -548,5 +550,6 @@ func (s *ShardKV) DoBucket(ctx context.Context, args *tinnraftpb.BucketOpArgs) (
 			}
 		}
 	}
+	reply.ErrCode = common.ErrCodeNoErr
 	return reply, nil
 }

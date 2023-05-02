@@ -167,14 +167,19 @@ func (kvCli *ShardKVClient) SendBucketRpcCommand(args *tinnraftpb.BucketOpArgs) 
 			for _, serverAddr := range servers { //获取当前分组对应的集群server addr，尝试发送
 				kvCli.client = tinnraft.MakeClientEnd(99, serverAddr)
 				reply, err := (*kvCli.client.GetRaftServiceCli()).DoBucket(context.Background(), args)
-				if err == nil {
+				if reply.ErrCode == common.ErrCodeNoErr {
 					if reply != nil {
 						return string(reply.BucketData)
 					} else {
 						return ""
 					}
 				} else {
-					tinnraft.DLog("send commend to server error,", err.Error())
+					//tinnraft.DLog("send commend to server error,", err.Error())
+
+					if reply == nil {
+						tinnraft.DLog("reply is nil,", reply)
+						return ""
+					}
 
 					if reply.ErrCode == common.ErrCodeWrongLeader {
 						tinnraft.DLog("get the leader id: %v", reply.LeaderId)
@@ -184,7 +189,7 @@ func (kvCli *ShardKVClient) SendBucketRpcCommand(args *tinnraftpb.BucketOpArgs) 
 							tinnraft.DLog("leader in sharedserver has down: %v", err.Error())
 							return ""
 						}
-						if reply.ErrMsg == "" && reply != nil {
+						if reply.ErrCode == common.ErrCodeNoErr && reply != nil {
 							return string(reply.BucketData)
 						} else if reply.ErrCode == common.ErrCodeNotReady {
 							tinnraft.DLog("ErrNotReady: %v", err.Error())
