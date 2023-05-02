@@ -163,6 +163,7 @@ message BucketOpReply{
 	bytes BucketData = 2;
 	string ErrMsg = 3;
 	int64 LeaderId = 4;
+	int64 ErrCode = 5;
 }
 
 message MigrateArgs{

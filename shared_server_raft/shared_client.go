@@ -85,8 +85,6 @@ func (kvCli *ShardKVClient) DeleteBucketDatas(gid int, bucketIds []int64) string
 	})
 }
 
-
-
 func (kvCli *ShardKVClient) SendRpcCommand(args *tinnraftpb.CommandArgs) (string, error) {
 	bucket_id := common.KeyToBucketId(args.Key)
 	log.Printf("caculated bucketId: %v\n", bucket_id)
@@ -178,7 +176,7 @@ func (kvCli *ShardKVClient) SendBucketRpcCommand(args *tinnraftpb.BucketOpArgs) 
 				} else {
 					tinnraft.DLog("send commend to server error,", err.Error())
 
-					if reply.ErrMsg == "ErrorWrongLeader" {
+					if reply.ErrCode == common.ErrCodeWrongLeader {
 						tinnraft.DLog("get the leader id: %v", reply.LeaderId)
 						kvCli.client = tinnraft.MakeClientEnd(99, servers[reply.LeaderId])
 						reply, err = (*kvCli.client.GetRaftServiceCli()).DoBucket(context.Background(), args)
@@ -188,10 +186,10 @@ func (kvCli *ShardKVClient) SendBucketRpcCommand(args *tinnraftpb.BucketOpArgs) 
 						}
 						if reply.ErrMsg == "" && reply != nil {
 							return string(reply.BucketData)
-						} else if reply.ErrMsg == "ErrorNotReady" {
+						} else if reply.ErrCode == common.ErrCodeNotReady {
 							tinnraft.DLog("ErrNotReady: %v", err.Error())
 							return ""
-						} else if reply.ErrMsg == "ErrorCopyError" {
+						} else if reply.ErrCode == common.ErrCodeCopyBuckets {
 							tinnraft.DLog("ErrorCopyError: %v", err.Error())
 							return ""
 						}

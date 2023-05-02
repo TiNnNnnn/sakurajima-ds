@@ -9,6 +9,8 @@ const (
 	ErrCodeWrongGroup
 	ErrCodeWrongLeader
 	ErrCodeExecTimeout
+	ErrCodeNotReady
+	ErrCodeCopyBuckets
 )
 
 func KeyToBucketId(key string) int {

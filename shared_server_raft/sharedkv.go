@@ -463,6 +463,7 @@ func (s *ShardKV) DoBucket(ctx context.Context, args *tinnraftpb.BucketOpArgs) (
 	if _, isLeader := s.tinnrf.GetState(); !isLeader {
 		reply.LeaderId = s.tinnrf.GetLeaderId()
 		reply.ErrMsg = "ErrorWrongLeader"
+		reply.ErrCode = common.ErrCodeWrongLeader
 		return reply, errors.New("ErrorWrongLeader")
 	}
 
@@ -473,19 +474,24 @@ func (s *ShardKV) DoBucket(ctx context.Context, args *tinnraftpb.BucketOpArgs) (
 			if s.curConfig.Version < int(args.ConfigVersion) {
 				s.mu.RUnlock()
 				reply.ErrMsg = "ErrorNotReady"
+				reply.ErrCode = common.ErrCodeNotReady
 				return reply, errors.New("ErrorNotReady")
 			}
 
 			bucketdatas := map[int]map[string]string{}
 			for _, bucketId := range args.BucketIds {
 				datas, err := s.stm[int(bucketId)].DeepCopy() //DeepCopy
-				//tinnraft.DLog("-------------datas %v", datas)
+				tinnraft.DLog("-------------datas %v", datas)
 				if err != nil {
 					s.mu.RUnlock()
+
+					reply.ErrMsg = "ErrorCopyBuckets"
+					reply.ErrCode = common.ErrCodeCopyBuckets
 					return reply, err
 				}
 				bucketdatas[int(bucketId)] = datas
 			}
+			reply.ErrCode = common.ErrCodeNoErr
 			bucketdataBytes, _ := json.Marshal(bucketdatas)
 			reply.BucketData = bucketdataBytes
 			reply.ConfigVersion = args.ConfigVersion
@@ -496,6 +502,7 @@ func (s *ShardKV) DoBucket(ctx context.Context, args *tinnraftpb.BucketOpArgs) (
 			s.mu.RLock()
 			if int64(s.curConfig.Version) > args.ConfigVersion {
 				s.mu.RUnlock()
+				reply.ErrCode = common.ErrCodeNotReady
 				reply.ErrMsg = "ErrorNotReady"
 				return reply, nil
 			}
@@ -509,7 +516,9 @@ func (s *ShardKV) DoBucket(ctx context.Context, args *tinnraftpb.BucketOpArgs) (
 
 			_, _, isLeader := s.tinnrf.Propose(comandArgsBytes)
 			if !isLeader {
+				reply.ErrCode = common.ErrCodeWrongLeader
 				reply.ErrMsg = "ErrorWrongLeader"
+				reply.LeaderId = s.tinnrf.GetLeaderId()
 				return reply, nil
 			}
 		}
@@ -518,6 +527,7 @@ func (s *ShardKV) DoBucket(ctx context.Context, args *tinnraftpb.BucketOpArgs) (
 			s.mu.RLock()
 			if int64(s.curConfig.Version) > args.ConfigVersion {
 				s.mu.RUnlock()
+				reply.ErrCode = common.ErrCodeNotReady
 				reply.ErrMsg = "ErrorNotReady"
 				return reply, nil
 			}
@@ -531,12 +541,12 @@ func (s *ShardKV) DoBucket(ctx context.Context, args *tinnraftpb.BucketOpArgs) (
 
 			_, _, isLeader := s.tinnrf.Propose(commandArgsBytes)
 			if !isLeader {
+				reply.ErrCode = common.ErrCodeWrongLeader
 				reply.ErrMsg = "ErrorWrongLeader"
+				reply.LeaderId = s.tinnrf.GetLeaderId()
 				return reply, nil
 			}
 		}
 	}
 	return reply, nil
 }
-
-
