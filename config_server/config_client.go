@@ -89,9 +89,6 @@ func (cfgCli *ConfigClient) Move(bucketId int, groupId int) bool {
 		tinnraft.DLog("move bucket reply failed,move bid %v to group %v failed , all configserver down", bucketId, groupId)
 		return false
 	}
-	if confReply.Ismigrate == true{
-		
-	}
 	tinnraft.DLog("move bucket reply ok,move bid %v to group %v", bucketId, groupId)
 	return true
 }

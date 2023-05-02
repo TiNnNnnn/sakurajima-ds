@@ -141,8 +141,6 @@ message ConfigReply{
 	ServerConfig Config = 2;
 	int64 LeaderId = 3;
 	int64 err_code = 4;
-	bool ismigrate = 5;
-	MigrateBucket mb =6;
 }
 
 // shared服务器分组相关操作
