@@ -43,7 +43,6 @@ type ShardKV struct {
 	stopApplyCh chan interface{}
 
 	apiGateClient *api_gateway.ApiGatwayClient
-	sharedCli     *ShardKVClient
 
 	migrateCond []*sync.Cond
 
@@ -82,7 +81,6 @@ func MakeShardKVServer(peerMaps map[int]string, nodeId int, groupId int, configS
 		engine:        newengine,
 		notifyChans:   map[int]chan *tinnraftpb.CommandReply{},
 		configCli:     config_server.MakeCfgSvrClient(99, strings.Split(configSvrAddrs, ",")),
-		sharedCli:     MakeSharedKvClient(""),
 		apiGateClient: apigateclient,
 		migrateCond:   make([]*sync.Cond, common.BucketsNum),
 	}
@@ -103,27 +101,27 @@ func MakeShardKVServer(peerMaps map[int]string, nodeId int, groupId int, configS
 
 }
 
-func (s *ShardKV) MigrateAction(bucketId int, gid int) {
+// func (s *ShardKV) MigrateAction(bucketId int, gid int) {
 
-	datas, err := s.stm[bucketId].KvDb.GetAllPrefixKey(strconv.Itoa(bucketId))
-	if err != nil {
-		tinnraft.DLog("get all kv from bucket %v failed", bucketId)
-		return
-	}
+// 	datas, err := s.stm[bucketId].KvDb.GetAllPrefixKey(strconv.Itoa(bucketId))
+// 	if err != nil {
+// 		tinnraft.DLog("get all kv from bucket %v failed", bucketId)
+// 		return
+// 	}
 
-	if len(datas) == 0 {
-		tinnraft.DLog("bucket %v is empty,migrate finish", bucketId)
-	}
+// 	if len(datas) == 0 {
+// 		tinnraft.DLog("bucket %v is empty,migrate finish", bucketId)
+// 	}
 
-	for k, v := range datas { //每次迁移一条
-		dataSingleMap := make(map[int]map[string]string)
-		kv := make(map[string]string)
-		kv[k] = v
-		dataSingleMap[bucketId] = kv
-		dataSingleMapBytes, _ := json.Marshal(dataSingleMap)
-		s.sharedCli.InsertBucketDatas(gid, []int64{int64(bucketId)}, dataSingleMapBytes)
-	}
-}
+// 	for k, v := range datas { //每次迁移一条
+// 		dataSingleMap := make(map[int]map[string]string)
+// 		kv := make(map[string]string)
+// 		kv[k] = v
+// 		dataSingleMap[bucketId] = kv
+// 		dataSingleMapBytes, _ := json.Marshal(dataSingleMap)
+// 		//s.sharedCli.InsertBucketDatas(gid, []int64{int64(bucketId)}, dataSingleMapBytes)
+// 	}
+// }
 
 func (s *ShardKV) IsKilled() bool {
 	return atomic.LoadInt32(&s.dead) == 1
@@ -540,3 +538,5 @@ func (s *ShardKV) DoBucket(ctx context.Context, args *tinnraftpb.BucketOpArgs) (
 	}
 	return reply, nil
 }
+
+
