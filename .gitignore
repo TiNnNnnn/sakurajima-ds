@@ -8,12 +8,12 @@
 # # Test binary, build with `go test -c`
 
 # # Output of the go coverage tool, specifically when used with LiteIDE
- *.out
- .idea
- .DS_Store
- test.txt
+*.out
+.idea
+.DS_Store
+test.txt
 # test*
- *.log
- SALOG*
+*.log
+SALOG*
 
 # /output
