@@ -87,11 +87,13 @@ func MakeRaft(peers []*ClientEnd, me int, dbEngine storage_engine.KvStorage,
 	rf.apiGateClient = apigateclient
 
 	// initialize from state persisted before the last crash
-	rf.readPersist()
+	//rf.readPersist()
 
+	lastLog := rf.log.GetPersistLastEntry()
 	fmt.Println("-----------------------------------")
 	for _, peer := range peers {
 		DLog("peer addr %s id %d", peer.addr, peer.id)
+		rf.matchIndex[peer.id], rf.nextIndex[peer.id] = 0, int(lastLog.Index+1)
 	}
 	fmt.Println("-----------------------------------")
 
